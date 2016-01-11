@@ -1,0 +1,12 @@
+#comment lines  after # are not used  as configuration
+iter=10
+alpha=0.1
+train_path = ../working_data/pku_train.invert
+test_raw_path=../working_data/pku_test.raw.invert
+test_path = ../working_data/pku_test.invert
+dev_path = ../working_data/pku.100.txt.invert
+quick_test=../working_data/pku.test.10.invert
+dict_path =../working_data/pku.dict.invert
+score_script_path=../working_data/score
+no_binary_action_feature = True
+hybrid_pred = True

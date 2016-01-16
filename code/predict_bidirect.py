@@ -65,7 +65,7 @@ def bidirect_segment(forward_model, back_model, text_corpus):
             # calculates scores
             scores = np.zeros_like(forward_scores)
             scores[0] = forward_scores[0]
-            for i in range(start=1, stop=len(forward_scores)):
+            for i in range(1, len(forward_scores)):
                 scores[i] = (forward_scores[i] + back_scores[i-1]) / 2
 
             for pos, score in enumerate(scores):

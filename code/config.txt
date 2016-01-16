@@ -1,7 +1,7 @@
 #comment lines  after # are not used  as configuration
 iter=10
 alpha=0.1
-train_path = ../working_data/pku_train
+train_path = ../working_data/pku_train.9000
 test_raw_path=../working_data/pku_test.raw
 test_path = ../working_data/pku_test
 dev_path = ../working_data/pku.100.txt

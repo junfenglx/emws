@@ -60,7 +60,13 @@ def bidirect_segment(forward_model, back_model, text_corpus):
         if sent:
             forward_scores = segment_sentence(forward_model, sent)
             back_scores = segment_sentence(back_model, sent[::-1])
-            scores = (forward_scores + back_scores[::-1]) / 2
+            back_scores = back_scores[::-1]
+
+            # calculates scores
+            scores = []
+            scores[0] = forward_scores[0]
+            for i in range(start=1, stop=len(forward_scores)):
+                scores[i] = forward_scores[i] + back_scores[i-1]
 
             for pos, score in enumerate(scores):
                 if score > 0.5:

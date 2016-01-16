@@ -101,7 +101,7 @@ if __name__ == '__main__':
 
     with codecs.open(out_path, 'w', 'utf-8') as f:
         f.write(
-                '\n'.join(map(seged, lambda s: ' '.join(s)))
+                '\n'.join(map(lambda s: ' '.join(s), seged))
         )
 
     print 'written done!'

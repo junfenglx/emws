@@ -63,10 +63,10 @@ def bidirect_segment(forward_model, back_model, text_corpus):
             back_scores = back_scores[::-1]
 
             # calculates scores
-            scores = []
+            scores = np.zeros_like(forward_scores)
             scores[0] = forward_scores[0]
             for i in range(start=1, stop=len(forward_scores)):
-                scores[i] = forward_scores[i] + back_scores[i-1]
+                scores[i] = (forward_scores[i] + back_scores[i-1]) / 2
 
             for pos, score in enumerate(scores):
                 if score > 0.5:
@@ -92,11 +92,12 @@ if __name__ == '__main__':
     print '\nreading testing corpus...'
     test_corpus = [''.join(line.split()) for line in codecs.open(test_path, 'rU', 'utf-8')]
 
-    print '\nloading model...'
+    print '\nloading forward model...'
     forward_model = Seger.load(forward_model_path)
     forward_model.drop_out = False
     forward_model.alter = True
 
+    print '\nloading back model...'
     back_model = Seger.load(back_model_path)
     back_model.drop_out = False
     back_model.alter = True

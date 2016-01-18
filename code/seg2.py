@@ -196,6 +196,14 @@ class Seger(Word2Vec):
             print 'bigram embedding loaded'
 
     def predict_sigle_position(self, sent, pos, prev2_label, prev_label):
+        """
+        predict a character's label
+        :param sent: the sentence
+        :param pos: the character position
+        :param prev2_label: second previous label
+        :param prev_label: first previous label
+        :return: softmax_score2, feature_index_list, pred_index_list2, feature_vec, pred_matrix2
+        """
 
         flag = False
 
@@ -231,6 +239,8 @@ class Seger(Word2Vec):
                 print 'Unknown candidate! Should NOT happen during training!'
                 assert False
 
+        # constant $LABEL0, $LABEL1
+        # for unknown words in test
         pred_tuple2 = tuple([self.label0_as_vocab, self.label1_as_vocab])
 
         softmax_score = None
@@ -264,12 +274,19 @@ class Seger(Word2Vec):
             pred_matrix2 = np_append(pred_matrix2, pred_matrix, axis=0)
             # print pred_matrix2.shape, pred_matrix.shape
 
-        if flag: print 'pred index and item=', pred_index_list2, ' '.join(
-                [self.index2word[ind] for ind in pred_index_list2])
+        if flag:
+            print 'pred index and item=', pred_index_list2, ' '.join(
+                    [self.index2word[ind] for ind in pred_index_list2])
 
         return softmax_score2, feature_index_list, pred_index_list2, feature_vec, pred_matrix2
 
     def train_gold_per_sentence(self, sentence, alpha, work=None):
+        """
+        :param sentence: the segmented sentence
+        :param alpha: the learning rate
+        :param work: self.layer1_size vector, initialized with zero, not use
+        :return: words count_sum, train error_sum for report
+        """
 
         flag = False
 
@@ -290,6 +307,8 @@ class Seger(Word2Vec):
             label_list = [1 for _ in range(len(sentence))]
 
             for i in index:
+                # added by junfeng
+                # start-position-of-a-word is labeled as "0"
                 label_list[i] = 0  # start-position-of-a-word is labeled as "1"
 
             prev2_label, prev_label = 0, 0
@@ -298,13 +317,14 @@ class Seger(Word2Vec):
 
                 # print '\npos', pos, 'char:',sentence[pos]
 
-                softmax_score, feature_index_list, pred_index_list, l1, l2 \
+                softmax_score, feature_index_list, pred_index_list, feature_vec, pred_matrix \
                     = self.predict_sigle_position(sentence, pos, prev2_label, prev_label)
 
-                # print 'l1 shape', l1.shape
-                # print 'l2 shape', l2.shape
+                # print 'feature_vec shape', feature_vec.shape
+                # print 'pred_matrix shape', pred_matrix.shape
 
-                if flag: print 'softmax_score=', softmax_score
+                if flag:
+                    print 'softmax_score=', softmax_score
 
                 true_label = label_list[pos]
 
@@ -313,12 +333,10 @@ class Seger(Word2Vec):
 
                     if true_label == 0:
                         gold_score = [1.0, 0.0, 1.0, 0.0]
-
                     elif true_label == 1:
                         gold_score = [0.0, 1.0, 0.0, 1.0]
                     else:
                         print 'Error! true label should either 1 or 0, but now it is:', true_label
-
                 else:
                     print 'The output of predict_single_position should have either 2 or 4 scores, but now it has '
                     assert False
@@ -333,22 +351,28 @@ class Seger(Word2Vec):
                 if flag:
                     print 'fb, gb shape', softmax_score.shape, gb.shape
                     print 'feature/pred, indices size', len(feature_index_list), len(pred_index_list)
-                    print 'outer(gb,l1) shape=', outer(gb, l1).shape
+                    print 'outer(gb,l1) shape=', outer(gb, feature_vec).shape
 
-                # print '??',dot(gb, l2[:,0:self.non_fixed_param]).shape
+                # print '??',dot(gb, pred_matrix[:,0:self.non_fixed_param]).shape
                 # print neu1e.shape
-                # print np_sum(l2[:,0:self.non_fixed_param], axis=0).shape
-                # print 'neu1e shape=', neu1e.shape, 'reshape:', neu1e.reshape(len(feature_index_list), len(neu1e)/len(feature_index_list)).shape,  '\n'
-                # print 'l1 shape', l1.shape
-                neu1e += dot(gb, l2[:, 0:self.non_fixed_param])
+                # print np_sum(pred_matrix[:,0:self.non_fixed_param], axis=0).shape
+                # print 'neu1e shape=', neu1e.shape,\
+                #    'reshape:', neu1e.reshape(len(feature_index_list),
+                #                              len(neu1e)/len(feature_index_list)
+                #                              ).shape, '\n'
+                # print 'feature_vec shape', feature_vec.shape
+
+                neu1e += dot(gb, pred_matrix[:, 0:self.non_fixed_param])
 
                 if self.l2_rate:
-                    self.syn1neg[pred_index_list] = self.syn1neg[pred_index_list] - alpha * self.l2_rate * self.syn1neg[
-                        pred_index_list]
-                    self.syn0[feature_index_list] = self.syn0[feature_index_list] - alpha * self.l2_rate * self.syn0[
-                        feature_index_list]
+                    # l2 regularization
+                    self.syn1neg[pred_index_list] -= alpha * self.l2_rate * self.syn1neg[pred_index_list]
+                    self.syn0[feature_index_list] -= alpha * self.l2_rate * self.syn0[feature_index_list]
 
-                self.syn1neg[pred_index_list] += outer(gb, l1)
+                # weight update
+                # important code snippet
+                # gb: list of length is 4
+                self.syn1neg[pred_index_list] += outer(gb, feature_vec)
                 self.syn0[feature_index_list] += neu1e.reshape(len(feature_index_list),
                                                                len(neu1e) / len(feature_index_list))
 
@@ -370,6 +394,11 @@ class Seger(Word2Vec):
         return count_sum, error_sum
 
     def predict_sentence_greedy(self, sent):
+        """
+        greedy predict sentence, used for test data
+        :param sent: the sentence
+        :return: segmented sentence, list of words
+        """
 
         tokens = []
         if sent:
@@ -421,6 +450,12 @@ class Seger(Word2Vec):
         return tokens
 
     def segment_corpus(self, corpus):
+        """
+        segment corpus(all test data)
+        :param corpus: list of sentences
+        :return: segmented corpus
+        """
+
         print 'segmenting corpus..'
         seg_corpus = []
         for sent_no, sent in enumerate(corpus):
@@ -432,6 +467,13 @@ class Seger(Word2Vec):
         return seg_corpus
 
     def eval(self, corpus, gold_path):
+        """
+        using perl score evaluate segmentation performance of the corpus
+        :param corpus: list of sentences
+        :param gold_path: the gold standard segmented corpus
+        :return: f_score, oov_recall, iv_recall
+        """
+
         seged_corpus = self.segment_corpus(corpus)
         time_str = self.finger_int + datetime.datetime.now().strftime('.%d.%H.%M')
         time_str = 'result.con.cat' + time_str
@@ -445,7 +487,7 @@ class Seger(Word2Vec):
 
         print 'eval with "score" '
         os.system(
-            "perl " + self.score_script + "  " + self.dict_path + " " + gold_path + "  " + tmp_path + "  >" + tmp_eval_path)
+                "perl " + self.score_script + "  " + self.dict_path + " " + gold_path + "  " + tmp_path + "  >" + tmp_eval_path)
         _, f_score, oov_recall, iv_recall, recall, precision = parse_evaluation_result(tmp_eval_path)
 
         if self.epoch < self.iter - 1 or corpus == self.quick_test_corpus:
@@ -510,7 +552,7 @@ class Seger(Word2Vec):
 
         if not self.no_sb_feature:
             state_feature_list.append(
-                self.sb_prefix + self.state_varient[int(prev_label)] + ''.join(b_1))  # change the bigram state def
+                    self.sb_prefix + self.state_varient[int(prev_label)] + ''.join(b_1))  # change the bigram state def
 
         if self.no_action_feature:
             feat_list = ngram_feature_list
@@ -694,7 +736,17 @@ class Seger(Word2Vec):
             yield sentence  # "sample" every word itself, rather than their vocab objects
 
     def _get_job_words(self, alpha, work, job, neu1):
+        """
+        training process entry
+        :param alpha: the learning rate
+        :param work: self.layer1_size vector, initialized with zero
+        :param job: chunk sentences
+        :param neu1: same as work, but aligned, not use it
+        :return: totally trained word count
+        """
+
         total_count, total_error_count = 0, 0
+        # job is chunk sentences
         for sentence in job:
             x, y = self.train_gold_per_sentence(sentence, alpha, work)
             total_count += x

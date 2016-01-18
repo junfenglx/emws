@@ -55,7 +55,6 @@ def segment_corpus(model, corpus, threashold=0):
 
                 if label == 0:
                     tokens.append(char)
-
                 else:
                     if tokens:
                         tokens[-1] += char

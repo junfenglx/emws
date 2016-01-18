@@ -74,6 +74,12 @@ def bidirect_segment(forward_model, back_model, text_corpus):
                 else:
                     tokens.append(sent[pos])
             count += len(sent)
+            """
+            print(sent)
+            print(forward_scores)
+            print(back_scores)
+            print(' '.join(tokens))
+            """
         seg_corpus.append(tokens)
 
     diff = time.time() - tic

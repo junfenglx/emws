@@ -19,6 +19,8 @@ from numpy import exp, dot, zeros, outer, random, dtype, float32 as REAL, \
 from numpy.random import permutation
 import codecs, sys, time, logging, os, math, datetime
 
+import numpy as np
+
 from six import iteritems, itervalues, string_types
 
 logger = logging.getLogger("gensim.models.word2vec")
@@ -35,7 +37,7 @@ def parse_evaluation_result(path_to_evaluation_result):
     if last_line_tokens[0] == '###' and len(last_line_tokens) == 14:
         recall, precision, f_score, oov_rate, oov_recall, iv_recall = [float(i) if i != "--" else i for i in
                                                                        last_line_tokens[-6:]]
-        return (path_to_evaluation_result.split('/')[-1], f_score, oov_recall, iv_recall, recall, precision)
+        return path_to_evaluation_result.split('/')[-1], f_score, oov_recall, iv_recall, recall, precision
     else:
         print('error! Format of the EVALUATION RESULT does not match the standard!')
 
@@ -96,11 +98,13 @@ class Seger(Word2Vec):
                  test_raw_path=None, test_path=None, dev_path=None, quick_test=None, dict_path=None,
                  score_script_path=None, pre_train=False, uni_path=None, bi_path=None, hybrid_pred=False,
                  no_action_feature=False, no_bigram_feature=False, no_unigram_feature=False,
-                 no_binary_action_feature=False, no_sb_state_feature=False, **kwargs):
+                 no_binary_action_feature=False, no_sb_state_feature=False,
+                 no_right_action_feature=False, **kwargs):
 
         print '\n\n### Initialization of the segmentation model ###'
 
         self.no_action_feature = no_action_feature
+        self.no_right_action_feature = no_right_action_feature
         self.no_bigram_feature = no_bigram_feature
         self.no_unigram_feature = no_unigram_feature
         self.no_binary_action_feature = no_binary_action_feature
@@ -148,7 +152,14 @@ class Seger(Word2Vec):
         Word2Vec.__init__(self, sentences=None, size=size, alpha=alpha, min_count=min_count, seed=seed, workers=workers,
                           iter=iter, **kwargs)
 
-        self.mask = [1 for i in range(12)]
+        self.mask = [1 for i in range(15)]
+
+        if self.no_right_action_feature:
+            self.mask = self.mask[:-3]
+            print ('len mask', len(self.mask))
+        elif self.no_sb_feature:
+            self.mask = self.mask[:-1]
+            print 'len mask', len(self.mask)
 
         if self.no_action_feature:
             self.mask = self.mask[:-3]
@@ -195,19 +206,25 @@ class Seger(Word2Vec):
             emb_normalization(self.bi_emb)
             print 'bigram embedding loaded'
 
-    def predict_single_position(self, sent, pos, prev2_label, prev_label):
+    def predict_single_position(self, sent, pos, prev2_label, prev_label, states=None):
         """
         predict a character's label
         :param sent: the sentence
         :param pos: the character position
         :param prev2_label: second previous label
         :param prev_label: first previous label
+        :param states: the previous iter states vector
         :return: softmax_score2, feature_index_list, pred_index_list2, feature_vec, pred_matrix2
         """
 
         flag = False
 
-        feature_vec, feature_index_list = self.gen_feature(sent, pos, prev2_label, prev_label)
+        future_label = states[pos+1]
+        future2_label = states[pos+2]
+
+        feature_vec, feature_index_list = self.gen_feature(sent, pos,
+                                                           prev2_label, prev_label,
+                                                           future_label, future2_label)
 
         if self.train_mode and self.drop_out:
             to_block = set(permutation(arange(self.non_fixed_param))[:self.dropout_size])
@@ -215,7 +232,7 @@ class Seger(Word2Vec):
             block = array([0 if zzz in to_block else 1 for zzz in range(self.pred_size)])
             feature_vec = multiply(feature_vec, block)
         elif self.drop_out:  # for dropout mode at testing time...
-            feature_vec = (1 - self.dropout_rate) * feature_vec
+            feature_vec *= (1 - self.dropout_rate)
             block = None
         else:
             block = None
@@ -304,7 +321,9 @@ class Seger(Word2Vec):
 
             sentence = map(full2halfwidth, sentence)
 
-            label_list = [1 for _ in range(len(sentence))]
+            label_list = [1 for _ in range(len(sentence)+2)]
+            label_list[-1] = 0
+            label_list[-2] = 0
 
             for i in index:
                 # added by junfeng
@@ -318,7 +337,7 @@ class Seger(Word2Vec):
                 # print '\npos', pos, 'char:',sentence[pos]
 
                 softmax_score, feature_index_list, pred_index_list, feature_vec, pred_matrix \
-                    = self.predict_single_position(sentence, pos, prev2_label, prev_label)
+                    = self.predict_single_position(sentence, pos, prev2_label, prev_label, states=label_list)
 
                 # print 'feature_vec shape', feature_vec.shape
                 # print 'pred_matrix shape', pred_matrix.shape
@@ -400,23 +419,19 @@ class Seger(Word2Vec):
         :return: segmented sentence, list of words
         """
 
-        tokens = []
-        if sent:
-            old_sentence = "".join(sent)
-            sentence = map(full2halfwidth, old_sentence)  # all half-width version, used to predict label...
-
+        def do_greedy_predict():
             prev2_label, prev_label = 0, 0
-
-            for pos, char in enumerate(old_sentence):  # char is still the char from original sentence, for correct eval
-                if pos == 0:
-                    label = 0
+            for p, c in enumerate(old_sentence):  # char is still the char from original sentence, for correct eval
+                if p == 0:
+                    target = 0
                 else:
-                    score_list, _, _, _, _ = self.predict_single_position(sentence, pos, prev2_label, prev_label)
+                    score_list, _, _, _, _ = self.predict_single_position(
+                            sentence, p, prev2_label, prev_label, states=states)
 
                     if self.binary_pred:
                         score_list = score_list[:2]
                     elif self.hybrid_pred:
-                        old_char = old_sentence[pos]
+                        old_char = old_sentence[p]
                         if old_char in self.vocab and self.vocab[old_char].count > self.hybrid_threshold:
                             score_list = score_list[-2:]
                         else:
@@ -426,14 +441,35 @@ class Seger(Word2Vec):
                     else:
                         score_list = score_list[-2:]
 
-                    # transform score to binary label
+                    # transform score to binary target
                     if score_list[1] > 0.5:
-                        label = 1
+                        target = 1
                     else:
-                        label = 0
+                        target = 0
+                # update the label in the current iter
+                states[p] = target
 
-                        # print '\nscore, label=', score_list, label
+                prev2_label = prev_label
+                prev_label = target
 
+        tokens = []
+        if sent:
+            old_sentence = "".join(sent)
+            sentence = map(full2halfwidth, old_sentence)  # all half-width version, used to predict label...
+
+            # initialize states vector
+            states = np.ones(len(sentence) + 2, dtype=np.int8)
+            states[0] = 0
+            states[-1] = 0
+            states[-2] = 0
+            if self.no_right_action_feature:
+                do_greedy_predict()
+            else:
+                for _ in range(self.iter):
+                    do_greedy_predict()
+
+            for pos, char in enumerate(old_sentence):
+                label = states[pos]
                 if label == 0:
                     tokens.append(char)
                 else:
@@ -443,9 +479,6 @@ class Seger(Word2Vec):
                         # never reach here
                         tokens.append(char)
                         print 'should not happen! the action of the first char in the sent is "append!" '
-
-                prev2_label = prev_label
-                prev_label = label
 
         return tokens
 
@@ -527,7 +560,7 @@ class Seger(Word2Vec):
                 print 'Unknown vocabulary item:', voc, 'This should NOT happen during the training phase'
         return index
 
-    def gen_feature(self, sent, pos, prev2_label, prev_label):
+    def gen_feature(self, sent, pos, prev2_label, prev_label, future_label, future2_label):
         """
         get features vector from self.syn0 matrix
         get words index
@@ -535,6 +568,8 @@ class Seger(Word2Vec):
         :param pos:
         :param prev2_label:
         :param prev_label:
+        :param future_label:
+        :param future2_label:
         :return:
         """
         u, u_1, u_2, u1, u2, b_1, b_2, b1, b2 = self.gen_unigram_bigram(sent, pos)
@@ -547,17 +582,25 @@ class Seger(Word2Vec):
         if self.no_unigram_feature:
             ngram_feature_list = ngram_feature_list[5:]
 
-        state_feature_list = [self.su_prefix + self.state_varient[int(item[0])] + item[1] for item in
-                              zip([prev2_label, prev_label], [u_2, u_1])]
-
+        state_feature_list = [self.su_prefix + self.state_varient[int(item[0])] + item[1]
+                              for item in zip([prev2_label, prev_label], [u_2, u_1])]
+        right_state_feature_list = [self.su_prefix + self.state_varient[int(item[0])] + item[1]
+                                    for item in zip([future_label, future2_label], [u1, u2])]
         if not self.no_sb_feature:
-            state_feature_list.append(
-                    self.sb_prefix + self.state_varient[int(prev_label)] + ''.join(b_1))  # change the bigram state def
-
+            # change the bigram state def
+            state_feature_list.append(self.sb_prefix +
+                                      self.state_varient[int(prev_label)] +
+                                      ''.join(b_1))
+            right_state_feature_list.append(self.sb_prefix +
+                                            self.state_varient[int(future_label)] +
+                                            ''.join(b1))
         if self.no_action_feature:
             feat_list = ngram_feature_list
         else:
             feat_list = ngram_feature_list + state_feature_list
+
+        if not self.no_right_action_feature:
+            feat_list += right_state_feature_list
 
         feature_index_list = map(self.word2index, feat_list)
         feature_vec = self.syn0[feature_index_list].ravel()
@@ -634,7 +677,6 @@ class Seger(Word2Vec):
 
         # for meta_subgram in [self.START, self.END]:
         #    vocab[meta_subgram]=Vocab(count =1)
-
 
         for sentence_no, sentence in enumerate(sentences):
             if sentence_no % 200 == 0:

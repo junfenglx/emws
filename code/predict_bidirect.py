@@ -15,7 +15,7 @@ def segment_sentence(model, sent):
         if pos == 0:
             label = 0
         else:
-            score_list, _, _, _, _ = model.predict_sigle_position(sentence, pos, prev2_label, prev_label)
+            score_list, _, _, _, _ = model.predict_single_position(sentence, pos, prev2_label, prev_label)
 
             if model.binary_pred:
                 score_list = score_list[:2]

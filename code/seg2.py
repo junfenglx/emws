@@ -195,7 +195,7 @@ class Seger(Word2Vec):
             emb_normalization(self.bi_emb)
             print 'bigram embedding loaded'
 
-    def predict_sigle_position(self, sent, pos, prev2_label, prev_label):
+    def predict_single_position(self, sent, pos, prev2_label, prev_label):
         """
         predict a character's label
         :param sent: the sentence
@@ -318,7 +318,7 @@ class Seger(Word2Vec):
                 # print '\npos', pos, 'char:',sentence[pos]
 
                 softmax_score, feature_index_list, pred_index_list, feature_vec, pred_matrix \
-                    = self.predict_sigle_position(sentence, pos, prev2_label, prev_label)
+                    = self.predict_single_position(sentence, pos, prev2_label, prev_label)
 
                 # print 'feature_vec shape', feature_vec.shape
                 # print 'pred_matrix shape', pred_matrix.shape
@@ -411,7 +411,7 @@ class Seger(Word2Vec):
                 if pos == 0:
                     label = 0
                 else:
-                    score_list, _, _, _, _ = self.predict_sigle_position(sentence, pos, prev2_label, prev_label)
+                    score_list, _, _, _, _ = self.predict_single_position(sentence, pos, prev2_label, prev_label)
 
                     if self.binary_pred:
                         score_list = score_list[:2]

@@ -635,11 +635,11 @@ class Seger(Word2Vec):
                 shuffle(self.train_corpus)  # shuffle the corpus
 
                 if self.total_words:
-                    word_count += self.train(self.train_corpus, chunksize=200,
-                                             total_words=self.total_words * self.iter,
-                                             word_count=word_count)
+                    word_count = self.train(self.train_corpus, chunksize=200,
+                                            total_words=self.total_words * self.iter,
+                                            word_count=word_count)
                 else:
-                    word_count += self.train(self.train_corpus, chunksize=200, word_count=word_count)
+                    word_count = self.train(self.train_corpus, chunksize=200, word_count=word_count)
 
                 self.train_mode = False
 

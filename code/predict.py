@@ -8,19 +8,18 @@ def segment_corpus(model, corpus, threashold=0):
     count = 0
     seg_corpus = []
     for sent_no, sent in enumerate(corpus):
-        if not sent_no%100:
+        if not sent_no % 100:
             print 'num of sentence segmented:', sent_no, '...'
 
         tokens = []
         if sent:
             old_sentence = "".join(sent)
-            sentence = map(full2halfwidth, old_sentence) # all half-width version, used to predict label...
+            sentence = map(full2halfwidth, old_sentence)  # all half-width version, used to predict label...
 
             prev2_label, prev_label = 0, 0
 
-
-            for pos, char in enumerate(old_sentence): # char is still the char from original sentence, for correct eval
-                if pos== 0:
+            for pos, char in enumerate(old_sentence):  # char is still the char from original sentence, for correct eval
+                if pos == 0:
                     label = 0
                 else:
                     score_list, _, _, _, _ = model.predict_single_position(sentence, pos, prev2_label, prev_label)
@@ -30,28 +29,28 @@ def segment_corpus(model, corpus, threashold=0):
 
                     elif model.alter:
                         old_char = old_sentence[pos]
-                        if old_char in model.vocab and model.vocab[old_char].count>threashold:
+                        if old_char in model.vocab and model.vocab[old_char].count > threashold:
                             score_list = score_list[-2:]
                         else:
-                            #score_list = score_list[:2]
-                            x,y= score_list[:2], score_list[-2:]
-                            score_list = [(x[i]+y[i])/2.0 for i in range(2)]
+                            # score_list = score_list[:2]
+                            x, y = score_list[:2], score_list[-2:]
+                            score_list = [(x[i] + y[i]) / 2.0 for i in range(2)]
 
                     elif model.hybrid_pred:
-                        x,y= score_list[:2], score_list[-2:]
-                        score_list = [(x[i]+y[i])/2.0 for i in range(2)]
+                        x, y = score_list[:2], score_list[-2:]
+                        score_list = [(x[i] + y[i]) / 2.0 for i in range(2)]
 
 
                     else:
                         score_list = score_list[-2:]
 
-                    #transform score to binary label
-                    if score_list[1]>0.5:
+                    # transform score to binary label
+                    if score_list[1] > 0.5:
                         label = 1
                     else:
                         label = 0
 
-                    #print '\nscore, label=', score_list, label
+                        # print '\nscore, label=', score_list, label
 
                 if label == 0:
                     tokens.append(char)
@@ -64,15 +63,14 @@ def segment_corpus(model, corpus, threashold=0):
 
                 prev2_label = prev_label
                 prev_label = label
-            count += (pos+1)
+            count += (pos + 1)
         seg_corpus.append(tokens)
 
     diff = time.time() - tic
     print 'segmentation done!'
-    print 'time spent:', diff, 'speed=', count/float(diff), 'characters per second'
+    print 'time spent:', diff, 'speed=', count / float(diff), 'characters per second'
 
     return seg_corpus
-
 
 
 if __name__ == '__main__':
@@ -80,27 +78,21 @@ if __name__ == '__main__':
     print '\n\nScript for conducting segmentation with an existing model...'
     print '\nArg: 1. model_path, 2. file_to_be_segmented,  3. path to output'
 
-
-    
     model_path, test_path, out_path = sys.argv[1], sys.argv[2], sys.argv[3]
 
     print '\nreading testing corpus...'
-    test_corpus = [''.join(line.split()) for line in codecs.open(test_path, 'rU','utf-8')]
-
+    test_corpus = [''.join(line.split()) for line in codecs.open(test_path, 'rU', 'utf-8')]
 
     print '\nloading model...'
     model = Seger.load(model_path)
-    model.drop_out=False
+    model.drop_out = False
     model.alter = True
     threshold = model.hybrid_threshold
     seged = segment_corpus(model, test_corpus, threshold)
     print '\nwriting segmented corpus to file', out_path
 
-    with codecs.open(out_path, 'w','utf-8') as f:
+    with codecs.open(out_path, 'w', 'utf-8') as f:
         for sent in seged:
-            f.write(' '.join(sent)+'\n')
+            f.write(' '.join(sent) + '\n')
 
-    print 'written done!' 
-
-
-
+    print 'written done!'

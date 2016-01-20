@@ -94,7 +94,7 @@ def emb_normalization(model):
 
 
 class Seger(Word2Vec):
-    def __init__(self, size=50, alpha=0.1, min_count=1, seed=1, workers=1, iter=1, use_gold=0, train_path=None,
+    def __init__(self, size=50, alpha=0.1, min_count=1, seed=1, workers=1, iter=1, use_gold=1, train_path=None,
                  test_raw_path=None, test_path=None, dev_path=None, quick_test=None, dict_path=None,
                  score_script_path=None, pre_train=False, uni_path=None, bi_path=None, hybrid_pred=False,
                  no_action_feature=False, no_bigram_feature=False, no_unigram_feature=False,
@@ -206,6 +206,8 @@ class Seger(Word2Vec):
             emb_normalization(self.bi_emb)
             print 'bigram embedding loaded'
 
+        self.epoch = None
+
     def predict_single_position(self, sent, pos, prev2_label, prev_label, states=None):
         """
         predict a character's label
@@ -219,8 +221,8 @@ class Seger(Word2Vec):
 
         flag = False
 
-        future_label = states[pos+1]
-        future2_label = states[pos+2]
+        future_label = states[pos + 1]
+        future2_label = states[pos + 2]
 
         feature_vec, feature_index_list = self.gen_feature(sent, pos,
                                                            prev2_label, prev_label,
@@ -321,7 +323,7 @@ class Seger(Word2Vec):
 
             sentence = map(full2halfwidth, sentence)
 
-            label_list = [1 for _ in range(len(sentence)+2)]
+            label_list = [1 for _ in range(len(sentence) + 2)]
             label_list[-1] = 0
             label_list[-2] = 0
 
@@ -609,11 +611,12 @@ class Seger(Word2Vec):
             feat_vec = feature_vec
         else:
             feat_vec = np_append(feature_vec, asanyarray(
-                    [float(prev2_label), float(prev_label)]))  ###########  !!!!! tmp block the previous state feature..
-
+                    [float(prev2_label), float(prev_label)]))
+            # ###########  !!!!! tmp block the previous state feature..
         # print 'feature shape', feat_vec.shape
         # print 'feature_shape', feature_vec.shape
-        # feat_vec=np_append(feature_vec, asanyarray([float(prev2_label), float(prev_label)]))  ###########  !!!!! tmp block the previous state feature..
+        # feat_vec=np_append(feature_vec, asanyarray([float(prev2_label), float(prev_label)]))
+        # ###########  !!!!! tmp block the previous state feature..
         # print 'feature shape', feat_vec.shape
 
         return feat_vec, feature_index_list
@@ -622,18 +625,21 @@ class Seger(Word2Vec):
 
         if self.train_corpus:
             self.build_vocab(self.train_corpus)
+            word_count = 0
+            tic = time.time()
 
             for n in range(self.iter):
-                tic = time.time()
                 self.train_mode = True
-                self.epoch = n
+                self.epoch = n + 1
 
                 shuffle(self.train_corpus)  # shuffle the corpus
 
                 if self.total_words:
-                    self.train(self.train_corpus, chunksize=200, total_words=self.total_words)
+                    word_count += self.train(self.train_corpus, chunksize=200,
+                                             total_words=self.total_words * self.iter,
+                                             word_count=word_count)
                 else:
-                    self.train(self.train_corpus, chunksize=200)
+                    word_count += self.train(self.train_corpus, chunksize=200, word_count=word_count)
 
                 self.train_mode = False
 

@@ -1,0 +1,39 @@
+name: emws
+dependencies:
+- decorator=4.0.6=py27_0
+- gensim=0.10.3=np19py27_0
+- h5py=2.5.0=np110py27_4
+- hdf5=1.8.15.1=2
+- ipython=4.0.1=py27_0
+- ipython_genutils=0.1.0=py27_0
+- libgfortran=1.0=0
+- openblas=0.2.14=3
+- openssl=1.0.2e=0
+- path.py=8.1.2=py27_1
+- pexpect=3.3=py27_0
+- pickleshare=0.5=py27_0
+- pip=8.0.1=py27_0
+- python=2.7.11=0
+- pyyaml=3.11=py27_1
+- readline=6.2=2
+- scipy=0.16.1=np110py27_0
+- setuptools=19.4=py27_0
+- simplegeneric=0.8.1=py27_0
+- six=1.10.0=py27_0
+- sqlite=3.9.2=0
+- tk=8.5.18=0
+- traitlets=4.0.0=py27_0
+- wheel=0.26.0=py27_1
+- yaml=0.1.6=0
+- zlib=1.2.8=0
+- pip:
+  - dask==0.7.5
+  - ipython-genutils==0.1.0
+  - keras==0.3.1
+  - lasagne==0.2.dev1
+  - locket==0.2.0
+  - numpy==1.10.4
+  - partd==0.3.2
+  - theano==0.8.0.dev0
+  - toolz==0.7.4
+  - xgboost==0.4

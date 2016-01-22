@@ -120,3 +120,4 @@ fabric.properties
 *.log
 *.out
 *.pyg
+/data

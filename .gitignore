@@ -118,3 +118,5 @@ fabric.properties
 *.synctex.gz
 *.pdf
 *.log
+*.out
+*.pyg

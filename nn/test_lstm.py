@@ -8,7 +8,6 @@ import codecs
 import numpy as np
 from sklearn.externals import joblib
 
-
 np.random.seed(7)  # for reproducibility
 
 from keras.preprocessing import sequence
@@ -19,14 +18,11 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM
 from keras.datasets import imdb
 
-TRAIN_FILE = "../working_data/pku_train"
-TEST_FILE = "../working_data/pku_test.raw"
-
-index = 0
+from cws_config import *
+from eval_test import EvalTest
 
 
 def find_max_len():
-
     def iter_lines(filename, max_len=0):
         with codecs.open(filename, "rb", encoding="utf-8") as f:
             for line in f:
@@ -37,9 +33,9 @@ def find_max_len():
                     max_len = len(line)
                 for c in line:
                     if c not in char2index:
-                        global index
-                        char2index[c] = index
-                        index += 1
+                        global INDEX
+                        char2index[c] = INDEX
+                        INDEX += 1
         return max_len
 
     char2index = {}
@@ -48,22 +44,20 @@ def find_max_len():
     return max_length, char2index
 
 
-MAX_LEN = 1019
+def read_lines(filename):
+    lines = []
+    with codecs.open(filename, "rb", encoding="utf-8") as f:
+        for l in f:
+            l = l.strip()
+            if not l:
+                print(l, filename)
+                continue
+            l = l.split()
+            lines.append(l)
+    return lines
 
 
 def load_data():
-    def read_lines(filename):
-        lines = []
-        with codecs.open(filename, "rb", encoding="utf-8") as f:
-            for l in f:
-                l = l.strip()
-                if not l:
-                    print(l, filename)
-                    continue
-                l = l.split()
-                lines.append(l)
-        return lines
-
     _, char2index = find_max_len()
     print("total character: ", len(char2index))
     # train process
@@ -103,17 +97,6 @@ def load_data():
     return x_train, y, x_test
 
 
-"""
-x_train.shape:  (19054, 1019)
-y.shape:  (19054, 1019)
-
-x_test.shape:  (1944, 1019)
-"""
-
-MAX_FEATURES = 4789
-BATCH_SIZE = 32
-
-
 def build_model():
     print('Build model...')
     model = Graph()
@@ -132,12 +115,13 @@ def build_model():
     model.add_node(LSTM(32, return_sequences=True), name='forward2', input='forward_dropout')
     model.add_node(LSTM(32, go_backwards=True, return_sequences=True), name='backward2', input='backward_dropout')
 
-    model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', merge_mode='ave', inputs=['forward2', 'backward2'])
+    model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', merge_mode='ave',
+                   inputs=['forward2', 'backward2'])
     model.add_output(name='output', input='sigmoid')
     return model
 
-if __name__ == "__main__":
 
+if __name__ == "__main__":
     # print(find_max_len())
 
     # X_train, y_train, X_test = load_data()
@@ -161,17 +145,15 @@ if __name__ == "__main__":
     # try using different optimizers and different optimizer configs
     model.compile('adam', {'output': 'binary_crossentropy'})
 
+    X_test = joblib.load(X_test_pkl)
+    print("X_test.shape: ", X_test.shape)
+    test_lines = read_lines(TEST_FILE)
+    eval_callback = EvalTest(test_lines, X_test, "../weights/weights-{epoch:02d}.hdf5")
+
     print('Train...')
     model.fit({'input': X_train, 'output': y_train},
               batch_size=BATCH_SIZE,
-              nb_epoch=10)
+              nb_epoch=10,
+              callbacks=[eval_callback])
 
-    X_test = joblib.load(X_test_pkl)
-    # X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
-    print("X_test.shape: ", X_test.shape)
 
-    y_test_p = model.predict({'input': X_test}, batch_size=BATCH_SIZE)['output']
-    y_test = np.array(y_test_p)
-    y_test = np.round(y_test)
-    print("y_test.shape: ", y_test.shape)
-    joblib.dump(y_test, "../data/y_test.pkl")

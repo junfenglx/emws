@@ -152,6 +152,7 @@ if __name__ == "__main__":
     X_train = joblib.load(X_train_pkl)
     y_train = joblib.load(y_train_pkl)
     # X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
+    y_train = np.reshape(y_train, (y_train.shape[0], y_train.shape[1], 1))
     print("X_train.shape: ", X_train.shape)
     print("y_train.shape: ", y_train.shape)
 

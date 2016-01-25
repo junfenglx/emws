@@ -22,8 +22,10 @@ from keras.datasets import imdb
 TRAIN_FILE = "../working_data/pku_train"
 TEST_FILE = "../working_data/pku_test.raw"
 
+index = 0
 
 def find_max_len():
+
     def iter_lines(filename, max_len=0):
         with codecs.open(filename, "rb", encoding="utf-8") as f:
             for line in f:
@@ -32,11 +34,17 @@ def find_max_len():
                 if max_len < len(line):
                     print(line)
                     max_len = len(line)
+                for c in line:
+                    if c not in char2index:
+                        global index
+                        char2index[c] = index
+                        index += 1
         return max_len
 
+    char2index = {}
     max_length = iter_lines(TRAIN_FILE)
     max_length = iter_lines(TEST_FILE, max_len=max_length)
-    return max_length
+    return max_length, char2index
 
 
 MAX_LEN = 1019
@@ -55,6 +63,11 @@ def load_data():
                 lines.append(l)
         return lines
 
+<<<<<<< HEAD
+=======
+    _, char2index = find_max_len()
+    print("total character: ", len(char2index))
+>>>>>>> 4a03b296d1ad5dd740590087da8e5b0c0dc3e5ee
     # train process
     print("processing train file ...")
     train_lines = read_lines(TRAIN_FILE)
@@ -70,7 +83,11 @@ def load_data():
         for word in line:
             labels[index] = 0
             index += len(word)
+<<<<<<< HEAD
         characters = [ord(c) for c in old_line]
+=======
+        characters = [char2index[c] for c in old_line]
+>>>>>>> 4a03b296d1ad5dd740590087da8e5b0c0dc3e5ee
         x_train.append(characters)
         y.append(labels)
     x_train = sequence.pad_sequences(x_train, maxlen=MAX_LEN, padding="post")
@@ -84,7 +101,7 @@ def load_data():
     x_test = []
     for line in test_lines:
         old_line = ''.join(line)
-        characters = [ord(c) for c in old_line]
+        characters = [char2index[c] for c in old_line]
         x_test.append(characters)
     x_test = sequence.pad_sequences(x_test, maxlen=MAX_LEN, padding="post")
     print("x_test.shape: ", x_test.shape)
@@ -99,7 +116,7 @@ y.shape:  (19054, 1019)
 x_test.shape:  (1944, 1019)
 """
 
-MAX_FEATURES = 20000
+MAX_FEATURES = 4789
 BATCH_SIZE = 32
 
 
@@ -109,10 +126,19 @@ def build_model():
     model.add_input(name='input', input_shape=(MAX_LEN,), dtype=int)
     model.add_node(Embedding(MAX_FEATURES, 128, input_length=MAX_LEN),
                    name='embedding', input='input')
-    model.add_node(LSTM(64), name='forward', input='embedding')
-    model.add_node(LSTM(64, go_backwards=True), name='backward', input='embedding')
-    model.add_node(Dropout(0.5), name='dropout', inputs=['forward', 'backward'])
-    model.add_node(Dense(1, activation='sigmoid'), name='sigmoid', input='dropout')
+    model.add_node(LSTM(64, return_sequences=True), name='forward', input='embedding')
+    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward', input='embedding')
+
+    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='forward1', input='backward')
+    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward1', input='forward')
+
+    model.add_node(Dropout(0.5), name='forward_dropout', merge_mode='ave', inputs=['forward', 'forward1'])
+    model.add_node(Dropout(0.5), name='backward_dropout', merge_mode='ave', inputs=['backward', 'backward1'])
+
+    model.add_node(LSTM(32, return_sequences=True), name='forward2', input='forward_dropout')
+    model.add_node(LSTM(32, go_backwards=True, return_sequences=True), name='backward2', input='backward_dropout')
+
+    model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', merge_mode='ave', inputs=['forward2', 'backward2'])
     model.add_output(name='output', input='sigmoid')
     return model
 
@@ -131,6 +157,7 @@ if __name__ == "__main__":
 
     X_train = joblib.load(X_train_pkl)
     y_train = joblib.load(y_train_pkl)
+    # X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
     print("X_train.shape: ", X_train.shape)
     print("y_train.shape: ", y_train.shape)
 
@@ -145,6 +172,7 @@ if __name__ == "__main__":
               nb_epoch=10)
 
     X_test = joblib.load(X_test_pkl)
+    # X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
     print("X_test.shape: ", X_test.shape)
 
     y_test_p = model.predict({'input': X_test}, batch_size=BATCH_SIZE)['output']

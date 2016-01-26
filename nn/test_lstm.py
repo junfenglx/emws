@@ -4,8 +4,10 @@
 
 from __future__ import print_function
 import codecs
+import functools
 import os.path
 
+import itertools
 import numpy as np
 from sklearn.externals import joblib
 
@@ -65,7 +67,7 @@ class TestLSTM(object):
         find max_length and construct char2index map
         :return:
         """
-        for line in self.train_lines:
+        for line in itertools.chain(self.train_lines, self.test_lines):
             # line is list of words
             line = ''.join(line)
 
@@ -181,5 +183,6 @@ class TestLSTM(object):
 if __name__ == "__main__":
     BATCH_SIZE = 32
     tl_model = TestLSTM(TRAIN_FILE, TEST_FILE, GOLD_PATH, DICT_PATH)
+    tl_model.compile()
     tl_model.train(batch_size=BATCH_SIZE)
 

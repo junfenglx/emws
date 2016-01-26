@@ -9,18 +9,11 @@ y.shape:  (19054, 1019)
 x_test.shape:  (1944, 1019)
 """
 
-MAX_FEATURES = 4789
-BATCH_SIZE = 32
-MAX_LEN = 1019
-
-
-TRAIN_FILE = "../working_data/pku_train"
+TRAIN_FILE = "../working_data/pku_train.9000"
 TEST_FILE = "../working_data/pku_test.raw"
 GOLD_PATH = "../working_data/pku_test"
 DICT_PATH = "../working_data/pku.dict"
 SCORE_SCRIPT = "../working_data/score"
-
-INDEX = 0
 
 if __name__ == "__main__":
     pass

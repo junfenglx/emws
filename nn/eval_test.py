@@ -35,6 +35,7 @@ def segment_by_labels(sentence, labels):
     """
 
     tokens = []
+    sentence = ''.join(sentence)
     for pos, c in enumerate(sentence):
         if pos == 0:
             tokens.append(c)
@@ -66,7 +67,7 @@ class EvalTest(ModelCheckpoint):
     def on_epoch_end(self, epoch, logs={}):
         super(EvalTest, self).on_epoch_end(epoch, logs)
         m = self.model
-        y_test_p = m.predict({'input': self.X_test}, batch_size=BATCH_SIZE)['output']
+        y_test_p = m.predict({'input': self.X_test})['output']
         y_test = np.array(y_test_p)
         y_test = np.round(y_test)
         print("y_test.shape: ", y_test.shape)

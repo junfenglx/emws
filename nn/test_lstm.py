@@ -4,6 +4,7 @@
 
 from __future__ import print_function
 import codecs
+import os.path
 
 import numpy as np
 from sklearn.externals import joblib
@@ -22,29 +23,12 @@ from cws_config import *
 from eval_test import EvalTest
 
 
-def find_max_len():
-    def iter_lines(filename, max_len=0):
-        with codecs.open(filename, "rb", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                line = line.replace(' ', '')
-                if max_len < len(line):
-                    print(line)
-                    max_len = len(line)
-                for c in line:
-                    if c not in char2index:
-                        global INDEX
-                        char2index[c] = INDEX
-                        INDEX += 1
-        return max_len
-
-    char2index = {}
-    max_length = iter_lines(TRAIN_FILE)
-    max_length = iter_lines(TEST_FILE, max_len=max_length)
-    return max_length, char2index
-
-
 def read_lines(filename):
+    """
+    read all lines from a file
+    :param filename: the file path
+    :return: list of words list
+    """
     lines = []
     with codecs.open(filename, "rb", encoding="utf-8") as f:
         for l in f:
@@ -57,103 +41,145 @@ def read_lines(filename):
     return lines
 
 
-def load_data():
-    _, char2index = find_max_len()
-    print("total character: ", len(char2index))
-    # train process
-    print("processing train file ...")
-    train_lines = read_lines(TRAIN_FILE)
-    x_train = []
-    y = []
-    for line in train_lines:
-        old_line = ''.join(line)
-        n = len(old_line)
-        # 1 indicates continue character
-        # 0 indicates start character
-        labels = [1 for _ in range(n)]
-        index = 0
-        for word in line:
-            labels[index] = 0
-            index += len(word)
-        characters = [char2index[c] for c in old_line]
-        x_train.append(characters)
-        y.append(labels)
-    x_train = sequence.pad_sequences(x_train, maxlen=MAX_LEN, padding="post")
-    y = sequence.pad_sequences(y, maxlen=MAX_LEN, padding="post")
-    print("x_train.shape: ", x_train.shape)
-    print("y.shape: ", y.shape)
+class TestLSTM(object):
+    def __init__(self, train_path, test_path, gold_path, dict_path):
+        self.train_path = train_path
+        self.test_path = test_path
+        self.gold_path = gold_path
+        self.dict_path = dict_path
+        self.train_lines = read_lines(train_path)
+        self.test_lines = read_lines(test_path)
 
-    # test process
-    print("processing test file ...")
-    test_lines = read_lines(TEST_FILE)
-    x_test = []
-    for line in test_lines:
-        old_line = ''.join(line)
-        characters = [char2index[c] for c in old_line]
-        x_test.append(characters)
-    x_test = sequence.pad_sequences(x_test, maxlen=MAX_LEN, padding="post")
-    print("x_test.shape: ", x_test.shape)
+        self.char2index = {}
+        self.max_length = 0
+        self.total_words = 0
+        # initialize char2index, max_length and total_words
+        self.find_max_len()
+        # convert data
+        self.X_train, self.y_train, self.X_test = self.load_data()
+        # build model
+        self.model = self.build_model()
 
-    return x_train, y, x_test
+    def find_max_len(self):
+        """
+        find max_length and construct char2index map
+        :return:
+        """
+        for line in self.train_lines:
+            # line is list of words
+            line = ''.join(line)
 
+            # find max length
+            if self.max_length < len(line):
+                print(line)
+                self.max_length = len(line)
+            # character to index
+            index = 0
+            for c in line:
+                if c not in self.char2index:
+                    self.char2index[c] = index
+                    index += 1
+        self.total_words = len(self.char2index)
+        print("max length of line: %d" % self.max_length)
+        print("total character: %d" % self.total_words)
 
-def build_model():
-    print('Build model...')
-    model = Graph()
-    model.add_input(name='input', input_shape=(MAX_LEN,), dtype=int)
-    model.add_node(Embedding(MAX_FEATURES, 128, input_length=MAX_LEN),
-                   name='embedding', input='input')
-    model.add_node(LSTM(64, return_sequences=True), name='forward', input='embedding')
-    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward', input='embedding')
+    def load_data(self):
+        """
+        process train test lines to numpy array
+        :return: x_train, y, x_test
+        """
+        # train process
+        print("processing train file ...")
+        x_train = []
+        y = []
+        for line in self.train_lines:
+            old_line = ''.join(line)
+            n = len(old_line)
+            # 1 indicates continue character
+            # 0 indicates start character
+            labels = [1 for _ in range(n)]
+            index = 0
+            for word in line:
+                labels[index] = 0
+                index += len(word)
+            characters = [self.char2index[c] for c in old_line]
+            x_train.append(characters)
+            y.append(labels)
+        x_train = sequence.pad_sequences(x_train, maxlen=self.max_length, padding="post")
+        y = sequence.pad_sequences(y, maxlen=self.max_length, padding="post")
+        print("x_train.shape: ", x_train.shape)
+        print("y.shape: ", y.shape)
 
-    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='forward1', input='backward')
-    model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward1', input='forward')
+        # test process
+        print("processing test file ...")
+        x_test = []
+        for line in self.test_lines:
+            old_line = ''.join(line)
+            characters = [self.char2index[c] for c in old_line]
+            x_test.append(characters)
+        x_test = sequence.pad_sequences(x_test, maxlen=self.max_length, padding="post")
+        print("x_test.shape: ", x_test.shape)
 
-    model.add_node(Dropout(0.5), name='forward_dropout', merge_mode='ave', inputs=['forward', 'forward1'])
-    model.add_node(Dropout(0.5), name='backward_dropout', merge_mode='ave', inputs=['backward', 'backward1'])
+        return x_train, y, x_test
 
-    model.add_node(LSTM(32, return_sequences=True), name='forward2', input='forward_dropout')
-    model.add_node(LSTM(32, go_backwards=True, return_sequences=True), name='backward2', input='backward_dropout')
+    def build_model(self):
+        print('Build model...')
+        model = Graph()
+        model.add_input(name='input', input_shape=(self.max_length,), dtype=int)
+        model.add_node(Embedding(self.total_words, 128, input_length=self.max_length),
+                       name='embedding', input='input')
+        model.add_node(LSTM(64, return_sequences=True), name='forward', input='embedding')
+        model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward', input='embedding')
 
-    model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', merge_mode='ave',
-                   inputs=['forward2', 'backward2'])
-    model.add_output(name='output', input='sigmoid')
-    return model
+        model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='forward1', input='backward')
+        model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward1', input='forward')
+
+        model.add_node(Dropout(0.5), name='forward_dropout', merge_mode='ave', inputs=['forward', 'forward1'])
+        model.add_node(Dropout(0.5), name='backward_dropout', merge_mode='ave', inputs=['backward', 'backward1'])
+
+        model.add_node(LSTM(32, return_sequences=True), name='forward2', input='forward_dropout')
+        model.add_node(LSTM(32, go_backwards=True, return_sequences=True), name='backward2', input='backward_dropout')
+
+        model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', merge_mode='ave',
+                       inputs=['forward2', 'backward2'])
+        model.add_output(name='output', input='sigmoid')
+
+        # reshape y_train
+        y_shape = self.y_train.shape
+        self.y_train = np.reshape(self.y_train, (y_shape[0], y_shape[1], 1))
+        return model
+
+    def compile(self):
+        # try using different optimizers and different optimizer configs
+        self.model.compile('adam', {'output': 'binary_crossentropy'})
+
+    def train(self, batch_size=128, nb_epoch=10, callbacks=None):
+        base_dir = "../weights"
+        if not os.path.isdir(base_dir):
+            os.mkdir(base_dir)
+        weight_path = os.path.join(base_dir, "weights-{epoch:02d}.hdf5")
+        eval_callback = EvalTest(self.test_lines, self.X_test, weight_path)
+
+        callbacks = callbacks if callbacks else [eval_callback]
+        print("callbacks:")
+        print(callbacks)
+
+        print('Train...')
+        self.model.fit({'input': self.X_train, 'output': self.y_train},
+                       batch_size=batch_size,
+                       nb_epoch=nb_epoch,
+                       callbacks=callbacks)
+
+    def predict(self, batch_size=128):
+        print("Predict...")
+        y_test_p = self.model.predict({'input': self.X_test}, batch_size=batch_size)['output']
+        y_test = np.array(y_test_p)
+        y_test = np.round(y_test)
+        return y_test
 
 
 if __name__ == "__main__":
-    # print(find_max_len())
-
-    # X_train, y_train, X_test = load_data()
-    # joblib.dump(X_train, "../data/X_train.pkl")
-    # joblib.dump(y_train, "../data/y_train.pkl")
-    # joblib.dump(X_test, "../data/X_test.pkl")
-
-    X_train_pkl = "../data/X_train.pkl"
-    y_train_pkl = "../data/y_train.pkl"
-    X_test_pkl = "../data/X_test.pkl"
-
-    X_train = joblib.load(X_train_pkl)
-    y_train = joblib.load(y_train_pkl)
-    # X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
-    y_train = np.reshape(y_train, (y_train.shape[0], y_train.shape[1], 1))
-    print("X_train.shape: ", X_train.shape)
-    print("y_train.shape: ", y_train.shape)
-
-    model = build_model()
-
-    # try using different optimizers and different optimizer configs
-    model.compile('adam', {'output': 'binary_crossentropy'})
-
-    X_test = joblib.load(X_test_pkl)
-    print("X_test.shape: ", X_test.shape)
-    test_lines = read_lines(TEST_FILE)
-    eval_callback = EvalTest(test_lines, X_test, "../weights/weights-{epoch:02d}.hdf5")
-
-    print('Train...')
-    model.fit({'input': X_train, 'output': y_train},
-              batch_size=BATCH_SIZE,
-              nb_epoch=10,
-              callbacks=[eval_callback])
-
+    BATCH_SIZE = 32
+    tl_model = TestLSTM(TRAIN_FILE, TEST_FILE, GOLD_PATH, DICT_PATH)
+    tl_model.train(batch_size=BATCH_SIZE)
 

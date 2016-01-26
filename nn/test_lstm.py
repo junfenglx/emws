@@ -15,10 +15,10 @@ np.random.seed(7)  # for reproducibility
 
 from keras.preprocessing import sequence
 from keras.utils.np_utils import accuracy
-from keras.models import Graph
+from keras.models import Graph, Sequential
 from keras.layers.core import Dense, Dropout
 from keras.layers.embeddings import Embedding
-from keras.layers.recurrent import LSTM
+from keras.layers.recurrent import LSTM, SimpleRNN
 from keras.datasets import imdb
 
 from cws_config import *
@@ -60,7 +60,9 @@ class TestLSTM(object):
         # convert data
         self.X_train, self.y_train, self.X_test = self.load_data()
         # build model
+        print('Build model...')
         self.model = self.build_model()
+        # self.model.get_config(verbose=1)
 
     def find_max_len(self):
         """
@@ -76,7 +78,8 @@ class TestLSTM(object):
                 print(line)
                 self.max_length = len(line)
             # character to index
-            index = 0
+            # 0 is a mask flag
+            index = 1
             for c in line:
                 if c not in self.char2index:
                     self.char2index[c] = index
@@ -125,10 +128,9 @@ class TestLSTM(object):
         return x_train, y, x_test
 
     def build_model(self):
-        print('Build model...')
         model = Graph()
         model.add_input(name='input', input_shape=(self.max_length,), dtype=int)
-        model.add_node(Embedding(self.total_words, 128, input_length=self.max_length),
+        model.add_node(Embedding(self.total_words, 128, input_length=self.max_length, mask_zero=True),
                        name='embedding', input='input')
         model.add_node(LSTM(64, return_sequences=True), name='forward', input='embedding')
         model.add_node(LSTM(64, go_backwards=True, return_sequences=True), name='backward', input='embedding')
@@ -151,22 +153,68 @@ class TestLSTM(object):
         self.y_train = np.reshape(self.y_train, (y_shape[0], y_shape[1], 1))
         return model
 
-    def compile(self):
+    def build_simple_model(self):
+        model = Graph()
+        model.add_input(name='input', input_shape=(self.max_length,), dtype=int)
+        model.add_node(Embedding(self.total_words, 128, input_length=self.max_length, mask_zero=True),
+                       name='embedding', input='input')
+        model.add_node(SimpleRNN(64, return_sequences=True), name='forward', input='embedding')
+
+        model.add_node(SimpleRNN(64, go_backwards=True, return_sequences=True), name='backward', input='embedding')
+
+        model.add_node(SimpleRNN(64, go_backwards=True, return_sequences=True), name='forward1', input='backward')
+        model.add_node(SimpleRNN(64, go_backwards=True, return_sequences=True), name='backward1', input='forward')
+
+        model.add_node(Dropout(0.5), name='forward_dropout', merge_mode='ave', inputs=['forward', 'forward1'])
+        model.add_node(Dropout(0.5), name='backward_dropout', merge_mode='ave', inputs=['backward', 'backward1'])
+
+        model.add_node(SimpleRNN(32, return_sequences=True), name='forward2', input='forward_dropout')
+        model.add_node(SimpleRNN(32, go_backwards=True, return_sequences=True),
+                       name='backward2', input='backward_dropout')
+
+        model.add_node(SimpleRNN(1, activation='sigmoid', return_sequences=True),
+                       name='sigmoid', merge_mode='ave',
+                       inputs=['forward2', 'backward2'])
+        # model.add_node(LSTM(1, activation='sigmoid', return_sequences=True), name='sigmoid', input='forward')
+        model.add_output(name='output', input='sigmoid')
+
+        # reshape y_train
+        y_shape = self.y_train.shape
+        self.y_train = np.reshape(self.y_train, (y_shape[0], y_shape[1], 1))
+        return model
+
+    def compile(self, optimizer='adam', loss=None):
+        """
+        compile
+        :param optimizer:
+        :param loss:
+        :return:
+        """
+
         # try using different optimizers and different optimizer configs
-        self.model.compile('adam', {'output': 'binary_crossentropy'})
+        if loss is None:
+            loss = {'output': 'binary_crossentropy'}
+
+        print("Compile...")
+        print("optimizer: %s" % optimizer)
+        print(u"loss: {0:s}".format(loss))
+
+        self.model.compile(optimizer, loss)
 
     def train(self, batch_size=128, nb_epoch=10, callbacks=None):
+        print('Train...')
         base_dir = "../weights"
         if not os.path.isdir(base_dir):
             os.mkdir(base_dir)
         weight_path = os.path.join(base_dir, "weights-{epoch:02d}.hdf5")
-        eval_callback = EvalTest(self.test_lines, self.X_test, weight_path)
-
+        eval_callback = EvalTest(weight_path, self)
         callbacks = callbacks if callbacks else [eval_callback]
         print("callbacks:")
         print(callbacks)
 
-        print('Train...')
+        self.do_train(batch_size, nb_epoch, callbacks)
+
+    def do_train(self, batch_size, nb_epoch, callbacks):
         self.model.fit({'input': self.X_train, 'output': self.y_train},
                        batch_size=batch_size,
                        nb_epoch=nb_epoch,
@@ -174,15 +222,48 @@ class TestLSTM(object):
 
     def predict(self, batch_size=128):
         print("Predict...")
-        y_test_p = self.model.predict({'input': self.X_test}, batch_size=batch_size)['output']
+        y_test_p = self.model.predict({'input': self.X_test}, batch_size=batch_size, verbose=1)['output']
         y_test = np.array(y_test_p)
         y_test = np.round(y_test)
+        print("y_test.shape: ", y_test.shape)
         return y_test
+
+
+class TestLSTMSequential(TestLSTM):
+    def predict(self, batch_size=128):
+        print("Predict...")
+        y_test_p = self.model.predict(self.X_test, batch_size=batch_size, verbose=1)
+        y_test = np.array(y_test_p)
+        y_test = np.round(y_test)
+        print("y_test.shape: ", y_test.shape)
+        return y_test
+
+    def do_train(self, batch_size, nb_epoch, callbacks):
+        self.model.fit(self.X_train, self.y_train, batch_size=batch_size,
+                       nb_epoch=nb_epoch, callbacks=callbacks)
+
+    def build_model(self):
+        model = Sequential()
+        model.add(Embedding(self.total_words, 256,
+                            input_length=self.max_length, mask_zero=True))
+        model.add(LSTM(128, return_sequences=True))
+        model.add(Dropout(0.5))
+        model.add(LSTM(128, return_sequences=True))
+        model.add(LSTM(1, activation='sigmoid', return_sequences=True))
+
+        # reshape y_train
+        y_shape = self.y_train.shape
+        self.y_train = np.reshape(self.y_train, (y_shape[0], y_shape[1], 1))
+        return model
 
 
 if __name__ == "__main__":
     BATCH_SIZE = 32
-    tl_model = TestLSTM(TRAIN_FILE, TEST_FILE, GOLD_PATH, DICT_PATH)
-    tl_model.compile()
+    tl_model = TestLSTMSequential(TRAIN_FILE, TEST_FILE, GOLD_PATH, DICT_PATH)
+
+    tl_model.compile(
+            loss='binary_crossentropy',
+            optimizer='rmsprop'
+    )
     tl_model.train(batch_size=BATCH_SIZE)
 

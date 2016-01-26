@@ -53,30 +53,25 @@ class EvalTest(ModelCheckpoint):
     eval test data using perl score
     """
 
-    def __init__(self, test_corpus, X_test, filepath):
+    def __init__(self, filepath, tl_model):
         """
-        :param test_corpus: list of sentences
-        :param X_test: X_test array
         :param filepath:
+        :param tl_model: test_lstm model
         :return:
         """
         super(EvalTest, self).__init__(filepath, verbose=1)
-        self.test_corpus = test_corpus
-        self.X_test = X_test
+        self.tl_model = tl_model
 
     def on_epoch_end(self, epoch, logs={}):
         super(EvalTest, self).on_epoch_end(epoch, logs)
-        m = self.model
-        y_test_p = m.predict({'input': self.X_test})['output']
-        y_test = np.array(y_test_p)
-        y_test = np.round(y_test)
-        print("y_test.shape: ", y_test.shape)
+        y_test = self.tl_model.predict()
 
-        self.eval(y_test, epoch)
+        self.eval(self.tl_model.test_lines, y_test, epoch + 1)
 
-    def eval(self, y_test, epoch):
+    def eval(self, test_corpus, y_test, epoch):
         """
         using perl score evaluate segmentation performance of the corpus
+        :param test_corpus:
         :param y_test:
         :param epoch:
         :return: f_score, oov_recall, iv_recall
@@ -84,7 +79,7 @@ class EvalTest(ModelCheckpoint):
 
         print('eval with "score" at epoch %s' % epoch)
 
-        segmented_corpus = self.segment_corpus(y_test)
+        segmented_corpus = self.segment_corpus(test_corpus, y_test)
         time_str = datetime.datetime.now().strftime('.%d.%H.%M')
         time_str = 'result.con.cat' + time_str
         tmp_path = '../working_data/' + time_str + '.tmp.seg'
@@ -95,28 +90,40 @@ class EvalTest(ModelCheckpoint):
                     '\n'.join(map(lambda s: ' '.join(s), segmented_corpus))
             )
 
-        os.system(
-                "perl " + SCORE_SCRIPT + "  " + DICT_PATH + " " + GOLD_PATH + "  " + tmp_path + "  >" + tmp_eval_path
-        )
-        _, f_score, oov_recall, iv_recall, recall, precision = parse_evaluation_result(tmp_eval_path)
+        cmd = "perl " + SCORE_SCRIPT +\
+              "  " + self.tl_model.dict_path + " " +\
+              self.tl_model.gold_path + "  " +\
+              tmp_path + "  >" + tmp_eval_path
+        os.system(cmd)
+        try:
+            (_, f_score, oov_recall,
+             iv_recall, recall, precision) = parse_evaluation_result(tmp_eval_path)
+        except TypeError as e:
+            f_score = oov_recall = iv_recall = recall = precision = np.NaN
+
         os.system("rm " + tmp_eval_path)
         os.system("rm " + tmp_path)
         print('F-score=%s, OOV-Recall=%s, IV-recall=%s' % (f_score, oov_recall, iv_recall))
 
         return f_score, oov_recall, iv_recall
 
-    def segment_corpus(self, y_test):
+    def segment_corpus(self, test_corpus, y_test):
         """
         segment corpus(all test data)
+        :param test_corpus: list of sentences
         :param y_test: predicted labels by self.model
         :return: segmented corpus
         """
 
         seg_corpus = []
-        for sent, labels in zip(self.test_corpus, y_test):
+        for sent, labels in zip(test_corpus, y_test):
             seg_corpus.append(segment_by_labels(sent, labels))
         return seg_corpus
 
 
 if __name__ == "__main__":
-    pass
+    from test_lstm import read_lines, TestLSTM
+
+    tl_model = TestLSTM(TRAIN_FILE, TEST_FILE, GOLD_PATH, DICT_PATH)
+    ev = EvalTest(None, tl_model)
+    ev.eval(tl_model.train_lines, tl_model.y_train, 1)

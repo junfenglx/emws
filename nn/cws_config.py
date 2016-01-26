@@ -9,9 +9,9 @@ y.shape:  (19054, 1019)
 x_test.shape:  (1944, 1019)
 """
 
-TRAIN_FILE = "../working_data/pku_train.9000"
-TEST_FILE = "../working_data/pku_test.raw"
-GOLD_PATH = "../working_data/pku_test"
+TRAIN_FILE = "../working_data/pku.100.txt"
+TEST_FILE = "../working_data/pku.100.txt"
+GOLD_PATH = "../working_data/pku.100.txt"
 DICT_PATH = "../working_data/pku.dict"
 SCORE_SCRIPT = "../working_data/score"
 

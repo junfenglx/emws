@@ -1,0 +1,449 @@
+\documentclass[]{article}
+\usepackage{nips15submit_e,times}
+
+\usepackage[colorlinks=true]{hyperref}
+\usepackage{url}
+
+
+% for math
+\usepackage{mathtools}
+
+% for pictures
+\usepackage{graphicx}
+
+% datetime
+\usepackage{datetime}
+
+
+% chinese fonts
+\usepackage{my_arch_ctex_fonts}
+
+% for code
+\usepackage{minted}
+
+
+%opening
+\title{Embedding Matching源码阅读报告}
+
+
+\author{
+	Junfeng~Hu\thanks{ \url{http://junfenglx.github.io/}} \\
+	15210240075 \\
+	School of Computer Science\\
+	Fudan University\\
+	No.825, Zhangheng Road, Shanghai \\
+	\texttt{15210240075@fudan.edu.cn} \\
+}
+
+\nipsfinalcopy % Uncomment for camera-ready version
+
+\begin{document}
+
+\maketitle
+
+% \begin{abstract}
+
+% \end{abstract}
+
+\tableofcontents
+
+\section{代码概况}
+《Accurate Linear-Time Chinese Word Segmentation via Embedding Matching》
+论文代码基于Python实现。
+
+code文件夹是代码实现，working\_data文件夹包含PKU数据集，以及perl score脚本。
+
+在code文件夹下一共有以下几个文件：
+\begin{itemize}
+\item config.txt 实验配置文件
+\item predict.py 使用已有模型对预料库进行分词
+\item script2.py 训练模型脚本，重现实验
+\item seg2.py 算法实现文件
+\item word2vec2.py gensim的word2vec实现的修改版本。
+\end{itemize}
+
+该代码依赖环境如下：
+\begin{itemize}
+\item Linux like OS
+\item Python 2.7, not Python 3.X
+\item Numpy >= 1.9
+\item gensim == 0.10.3
+\end{itemize}
+
+\section{实验重现}
+在code文件夹下运行命令： \mint{bash}|python script2.py config.txt|
+训练过程大概需要1个小时左右。config.txt文件中指定迭代10次，当然也可以增大
+和减小迭代次数。
+
+最终对测试集分词的结果如表~\ref{tab:pku_experiment_result}
+\begin{table}[t]
+\caption{PKU数据集实验重现结果}
+\label{tab:pku_experiment_result}
+\begin{center}
+\begin{tabular}{ll}
+\multicolumn{1}{c}{\bf  指标} & \multicolumn{1}{c}{\bf 大小} \\ \hline
+F MEASURE &0.950 \\
+OOV Rate  &0.058 \\
+OOV Recall Rate    &0.756 \\
+IV Recall Rate &0.957 \\
+\end{tabular}
+\end{center}
+\end{table}
+
+和其论文中得出的结果基本一致。
+
+\section{源码分析}
+
+code文件夹下seg2.py是包含论文算法实现代码的文件。
+
+其主要包含类Seger，该类是算法实现类，其继承gensim的Word2Vec类。
+
+该类主要方法见图~\ref{fig:seger_diagram}
+
+\begin{figure}
+\centering
+\includegraphics[width=1.0\linewidth]{../seger_diagram}
+\caption{Seger class diagram}
+\label{fig:seger_diagram}
+\end{figure}
+
+算法相关的函数主要有三个：
+\begin{enumerate}
+\item predict\_single\_position
+\item train\_gold\_per\_sentence
+\item predict\_sentence\_greedy
+\end{enumerate}
+
+\renewcommand\listingscaption{Code}
+
+\subsection{predict\_single\_position}
+
+predict\_single\_position函数的python doc见Code~\ref{code:predict_single_position}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=predict\_single\_position]{python}
+    def predict_single_position(self, sent, pos,
+                                prev2_label,
+                                prev_label, states=None):
+        """
+        predict a character's label
+        :param sent: the sentence
+        :param pos: the character position
+        :param prev2_label: second previous label
+        :param prev_label: first previous label
+        :param states: the previous iter states vector
+        :return: softmax_score2, feature_index_list,
+         pred_index_list2, feature_vec, pred_matrix2
+        """
+\end{minted}
+\caption{predict\_single\_position方法}
+\label{code:predict_single_position}
+\end{listing}
+
+predict\_single\_position主要代码片段见Code~\ref{code:predict_single_position关键代码}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=predict\_single\_position关键代码]{python}
+pred_tuple = tuple([self.su_prefix + varient + u
+    for varient in self.state_varient])
+if pred_tuple[0] in self.vocab and pred_tuple[1] in self.vocab:
+    pass
+else:
+    pred_tuple = None
+    if self.train_mode:
+        print 'Unknown candidate! Should NOT happen during training!'
+        assert False
+
+# constant $LABEL0, $LABEL1
+# for unknown words in test
+pred_tuple2 = tuple([self.label0_as_vocab, self.label1_as_vocab])
+
+softmax_score = None
+if pred_tuple:
+    pred_index_list = [self.vocab[pred].index for pred in pred_tuple]
+    pred_matrix = self.syn1neg[pred_index_list]
+
+    if block is not None:
+        pred_matrix = multiply(block, pred_matrix)
+    elif self.drop_out:
+        pred_matrix = (1 - self.dropout_rate) * pred_matrix
+
+    raw_score = exp(dot(feature_vec, pred_matrix.T))
+    softmax_score = raw_score / sum(raw_score)
+
+pred_index_list2 = [self.vocab[pred].index for pred in pred_tuple2]
+pred_matrix2 = self.syn1neg[pred_index_list2]
+
+if block is not None:
+    pred_matrix2 = multiply(block, pred_matrix2)
+elif self.drop_out:
+    # should be pred_matrix2
+    pred_matrix2 = (1 - self.dropout_rate) * pred_matrix2
+
+raw_score2 = exp(dot(feature_vec, pred_matrix2.T))
+softmax_score2 = raw_score2 / sum(raw_score2)
+# print pred_matrix2.shape, pred_matrix.shape
+if pred_tuple:
+    softmax_score2 = np_append(softmax_score2, softmax_score)
+    pred_index_list2.extend(pred_index_list)
+    pred_matrix2 = np_append(pred_matrix2, pred_matrix, axis=0)
+\end{minted}
+\caption{predict\_single\_position关键代码}
+\label{code:predict_single_position关键代码}
+\end{listing}
+
+\subsection{train\_gold\_per\_sentence}
+
+train\_gold\_per\_sentence函数的python doc见Code~\ref{code:train_gold_per_sentence}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=train\_gold\_per\_sentence]{python}
+    def train_gold_per_sentence(self, sentence, alpha, work=None):
+        """
+        :param sentence: the segmented sentence
+        :param alpha: the learning rate
+        :param work: self.layer1_size vector,
+         initialized with zero, not use
+        :return: words count_sum, train error_sum for report
+        """
+\end{minted}
+\caption{train\_gold\_per\_sentence方法}
+\label{code:train_gold_per_sentence}
+\end{listing}
+
+train\_gold\_per\_sentence主要代码片段见Code~\ref{code:train_gold_per_sentence关键代码}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=train\_gold\_per\_sentence关键代码]{python}
+prev2_label, prev_label = 0, 0
+for pos in range(count_sum):
+
+    softmax_score, feature_index_list, pred_index_list,\
+    feature_vec, pred_matrix = self.predict_single_position(
+            sentence, pos, prev2_label, prev_label,
+            states=label_list)
+
+    true_label = label_list[pos]
+    if true_label == 0:
+        gold_score = [1.0, 0.0, 1.0, 0.0]
+    elif true_label == 1:
+        gold_score = [0.0, 1.0, 0.0, 1.0]
+
+    error_array = gold_score - softmax_score
+    error_sum += sum(abs(error_array)) / len(error_array)
+    gb = error_array * alpha
+    neu1e = zeros(self.non_fixed_param)
+    neu1e += dot(gb, pred_matrix[:, 0:self.non_fixed_param])
+
+    if self.l2_rate:
+        # l2 regularization
+        self.syn1neg[pred_index_list] -=\
+            alpha * self.l2_rate * self.syn1neg[pred_index_list]
+        self.syn0[feature_index_list] -=\
+            alpha * self.l2_rate * self.syn0[feature_index_list]
+
+    # weight update
+    # important code snippet
+    # gb: list of length is 4
+    self.syn1neg[pred_index_list] += outer(gb, feature_vec)
+    self.syn0[feature_index_list] +=\
+        neu1e.reshape(len(feature_index_list),
+                      len(neu1e) / len(feature_index_list))
+
+    softmax_score = softmax_score[-2:]
+    if softmax_score[1] > 0.5:
+        label = 1
+    else:
+        label = 0
+    prev2_label = prev_label
+    prev_label = label
+    if self.use_gold:
+        prev_label = true_label
+\end{minted}
+\caption{predict\_single\_position关键代码}
+\label{code:train_gold_per_sentence关键代码}
+\end{listing}
+
+\subsection{predict\_sentence\_greedy}
+
+predict\_sentence\_greedy函数的python doc见Code~\ref{code:predict_sentence_greedy}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=predict\_sentence\_greedy]{python}
+    def predict_sentence_greedy(self, sent):
+        """
+        greedy predict sentence, used for test data
+        :param sent: the sentence
+        :return: segmented sentence, list of words
+        """
+\end{minted}
+\caption{predict\_sentence\_greedy方法}
+\label{code:predict_sentence_greedy}
+\end{listing}
+
+predict\_sentence\_greedy主要代码片段见Code~\ref{code:predict_sentence_greedy关键代码}
+\begin{listing}[H]
+\begin{minted}[frame=single, label=predict\_sentence\_greedy关键代码]{python}
+prev2_label, prev_label = 0, 0
+for p, c in enumerate(old_sentence):
+    # char is still the char from original sentence,
+    #  for correct eval
+    if p == 0:
+        target = 0
+    else:
+        score_list, _, _, _, _ =\
+            self.predict_single_position(
+                sentence, p, prev2_label,
+                    prev_label, states=states)
+
+        if self.binary_pred:
+            score_list = score_list[:2]
+        elif self.hybrid_pred:
+            old_char = old_sentence[p]
+            if old_char in self.vocab and\
+                            self.vocab[old_char].count\
+                            > self.hybrid_threshold:
+                score_list = score_list[-2:]
+            else:
+                # score_list = score_list[:2]
+                x, y = score_list[:2], score_list[-2:]
+                score_list = [(x[i] + y[i]) / 2.0 for i in range(2)]
+        else:
+            score_list = score_list[-2:]
+
+        # transform score to binary target
+        if score_list[1] > 0.5:
+            target = 1
+        else:
+            target = 0
+    # update the label in the current iter
+    states[p] = target
+
+    prev2_label = prev_label
+    prev_label = target
+\end{minted}
+\caption{predict\_sentence\_greedy关键代码}
+\label{code:predict_sentence_greedy关键代码}
+\end{listing}
+
+\subsection{Call Hierarchy}
+
+predict\_single\_position函数由
+Code~\ref{cde:call_hierarchy}所列出的几个函数调用。
+\begin{listing}[H]
+\begin{minted}[frame=single, label=Call Hierarchy]{text}
+segment_corpus(model, corpus, threashold=0) (code.predict)
+Seger.train_gold_per_sentence(self, sentence, alpha, work=None) \
+    (Seger in code.seg2)
+Seger.predict_sentence_greedy(self, sent) (Seger in code.seg2)
+\end{minted}
+\caption{Call Hierarchy}
+\label{cde:call_hierarchy}
+\end{listing}
+
+\section{算法改进}
+
+\footnote{改进代码地址：\url{https://github.com/junfenglx/emws/tree/dev}}
+由从左到右单向模型改为双向模型。分词时同时考虑左边和右边字的状态。
+
+双向具体实现过程主要有两种方法可以实现：
+\begin{itemize}
+\item ensemble two models
+\item using the labels of right characters
+\end{itemize}
+
+下面分别叙述。
+
+\subsection{Ensemble Method}
+
+该方式实现比较简单。就是从左向右训练出一个模型，然后从右往左训练一个模型，
+将这两个模型做一个ensemble：对于每个字，将两个模型得出的两个score相加
+取平均数。根据平均后的score来确定每个字的label。该方法没有改动训练过程，
+仅仅是整合两个不同模型的测试结果，实现相对简单。代码实现为code文件夹下的
+predict\_bidirect.py文件。
+其主要实现见Code~\ref{code:bidirection_greedy_predict}
+
+\begin{listing}
+\begin{minted}[frame=single, label=bidirection greedy predict]{python}
+count = 0
+seg_corpus = []
+
+for sent_no, sent in enumerate(test_corpus):
+    if sent_no % 100 == 0:
+        print 'num of sentence segmented:', sent_no, '...'
+
+    tokens = []
+    if sent:
+        forward_scores = segment_sentence(forward_model, sent)
+        back_scores = segment_sentence(back_model, sent[::-1])
+        back_scores = back_scores[::-1]
+
+        # calculates scores
+        # back_scores need right shit one to align forward_scores
+        scores = np.zeros_like(forward_scores)
+        scores[0] = forward_scores[0]
+        for i in range(1, len(forward_scores)):
+            scores[i] = (forward_scores[i] + back_scores[i-1]) / 2
+
+        for pos, score in enumerate(scores):
+            if score > 0.5:
+                tokens[-1] += sent[pos]
+            else:
+                tokens.append(sent[pos])
+        count += len(sent)
+        """
+        print(sent)
+        print(forward_scores)
+        print(back_scores)
+        print(' '.join(tokens))
+        """
+    seg_corpus.append(tokens)
+\end{minted}
+\caption{bidirection greedy predict}
+\label{code:bidirection_greedy_predict}
+\end{listing}
+
+\pagebreak
+
+\subsection{使用右边字状态}
+
+增加一个配置选项：
+\mint{cfg}|no_right_action_feature = False|
+当其设置为False时，算法使用右边两个字的状态特征，
+反之则不使用右边字状态。
+
+由于训练时从左向右扫描汉字，所以右边两个字的当前label 无法预先
+知道，因此需要寻找一种机制来获取右边两个字的label。
+
+尝试了两种方案：
+\begin{enumerate}
+	\item train时，左边状态使用当前迭代，右边使用gold standard labels
+	\item train时，左右全部使用gold standard labels，
+	    即使用use\_gold=1开启该参数
+\end{enumerate}
+
+测试时，由于并不知道gold standard labels，
+使用多次迭代来计算test sentences labels，初始时设置所有labels为1, 表示未分词，
+经过多次迭代，得到test sentences 的最终labels。
+关键代码实现见Code~\ref{code:iterate_greedy_predict}
+
+\begin{listing}[H]
+\begin{minted}[frame=single, label=iterate greedy predict]{python}
+# initialize states vector
+states = np.ones(len(sentence) + 2, dtype=np.int8)
+states[0] = 0
+states[-1] = 0
+states[-2] = 0
+if self.no_right_action_feature:
+    do_greedy_predict()
+else:
+    for _ in range(self.iter):
+        do_greedy_predict()
+\end{minted}
+\caption{iterate greedy predict}
+\label{code:iterate_greedy_predict}
+\end{listing}
+
+第一种训练方案，测试score达到0.949, 其在第5次迭代后就达到了该水平。
+
+第二种训练方案，测试score达到0.948。
+
+而当使用已有模型对test的输出的labels作为右边两字的labels时(已有模型的score为0.95)，
+两种训练方式score都能达到0.951。这和整合两个模型取平均概率的score是一样的。
+
+\end{document}

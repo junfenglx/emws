@@ -208,7 +208,9 @@ class Seger(Word2Vec):
 
         self.epoch = None
 
-    def predict_single_position(self, sent, pos, prev2_label, prev_label, states=None):
+    def predict_single_position(self, sent, pos,
+                                prev2_label,
+                                prev_label, states=None):
         """
         predict a character's label
         :param sent: the sentence
@@ -216,7 +218,8 @@ class Seger(Word2Vec):
         :param prev2_label: second previous label
         :param prev_label: first previous label
         :param states: the previous iter states vector
-        :return: softmax_score2, feature_index_list, pred_index_list2, feature_vec, pred_matrix2
+        :return: softmax_score2, feature_index_list,
+         pred_index_list2, feature_vec, pred_matrix2
         """
 
         flag = False
@@ -303,7 +306,8 @@ class Seger(Word2Vec):
         """
         :param sentence: the segmented sentence
         :param alpha: the learning rate
-        :param work: self.layer1_size vector, initialized with zero, not use
+        :param work: self.layer1_size vector,
+         initialized with zero, not use
         :return: words count_sum, train error_sum for report
         """
 
@@ -338,8 +342,10 @@ class Seger(Word2Vec):
 
                 # print '\npos', pos, 'char:',sentence[pos]
 
-                softmax_score, feature_index_list, pred_index_list, feature_vec, pred_matrix \
-                    = self.predict_single_position(sentence, pos, prev2_label, prev_label, states=label_list)
+                softmax_score, feature_index_list, pred_index_list,\
+                feature_vec, pred_matrix = self.predict_single_position(
+                        sentence, pos, prev2_label, prev_label,
+                        states=label_list)
 
                 # print 'feature_vec shape', feature_vec.shape
                 # print 'pred_matrix shape', pred_matrix.shape
@@ -387,15 +393,18 @@ class Seger(Word2Vec):
 
                 if self.l2_rate:
                     # l2 regularization
-                    self.syn1neg[pred_index_list] -= alpha * self.l2_rate * self.syn1neg[pred_index_list]
-                    self.syn0[feature_index_list] -= alpha * self.l2_rate * self.syn0[feature_index_list]
+                    self.syn1neg[pred_index_list] -=\
+                        alpha * self.l2_rate * self.syn1neg[pred_index_list]
+                    self.syn0[feature_index_list] -=\
+                        alpha * self.l2_rate * self.syn0[feature_index_list]
 
                 # weight update
                 # important code snippet
                 # gb: list of length is 4
                 self.syn1neg[pred_index_list] += outer(gb, feature_vec)
-                self.syn0[feature_index_list] += neu1e.reshape(len(feature_index_list),
-                                                               len(neu1e) / len(feature_index_list))
+                self.syn0[feature_index_list] +=\
+                    neu1e.reshape(len(feature_index_list),
+                                  len(neu1e) / len(feature_index_list))
 
                 softmax_score = softmax_score[-2:]
                 if softmax_score[1] > 0.5:
@@ -423,18 +432,24 @@ class Seger(Word2Vec):
 
         def do_greedy_predict():
             prev2_label, prev_label = 0, 0
-            for p, c in enumerate(old_sentence):  # char is still the char from original sentence, for correct eval
+            for p, c in enumerate(old_sentence):
+                # char is still the char from original sentence,
+                #  for correct eval
                 if p == 0:
                     target = 0
                 else:
-                    score_list, _, _, _, _ = self.predict_single_position(
-                            sentence, p, prev2_label, prev_label, states=states)
+                    score_list, _, _, _, _ =\
+                        self.predict_single_position(
+                            sentence, p, prev2_label,
+                                prev_label, states=states)
 
                     if self.binary_pred:
                         score_list = score_list[:2]
                     elif self.hybrid_pred:
                         old_char = old_sentence[p]
-                        if old_char in self.vocab and self.vocab[old_char].count > self.hybrid_threshold:
+                        if old_char in self.vocab and\
+                                        self.vocab[old_char].count \
+                                        > self.hybrid_threshold:
                             score_list = score_list[-2:]
                         else:
                             # score_list = score_list[:2]

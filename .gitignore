@@ -121,3 +121,5 @@ fabric.properties
 *.out
 *.pyg
 /data
+/weights
+*.toc

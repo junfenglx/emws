@@ -1,0 +1,3 @@
+[submodule "emws-cpp/third_party/libigl"]
+	path = emws-cpp/third_party/libigl
+	url = git@github.com:libigl/libigl.git

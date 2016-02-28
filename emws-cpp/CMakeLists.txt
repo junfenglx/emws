@@ -17,9 +17,24 @@ set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_COLOR_MAKEFILE   ON)
 
 # common include
+
+# Eigen
 set(Eigen_INCLUDE_DIR /usr/include/eigen3)
 include_directories("${Eigen_INCLUDE_DIR}")
+set(Eigen_Unsupported_INCLUDE_DIR /usr/include/eigen3/unsupported)
+include_directories("${Eigen_Unsupported_INCLUDE_DIR}")
 
+# libigl
+set(Libigl_INCLUDE_DIR ./third_party/libigl/include)
+include_directories("${Libigl_INCLUDE_DIR}")
+
+# Armadillo
+find_package(Armadillo)
+include_directories(${ARMADILLO_INCLUDE_DIRS})
+# target_link_libraries(foo ${ARMADILLO_LIBRARIES})
+# MESSAGE(STATUS "${ARMADILLO_LIBRARIES}")
+
+# project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 include_directories("${PROJECT_INCLUDE_DIR}")
 

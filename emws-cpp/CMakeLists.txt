@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.3)
 project(emws-cpp)
 
+# output dir
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build")
 
+# compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+
+# openmp
+find_package(OpenMP)
+if (OPENMP_FOUND)
+    set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
 
 # You can tweak some common (for all subprojects) stuff here. For example:
 
@@ -33,6 +43,7 @@ find_package(Armadillo)
 include_directories(${ARMADILLO_INCLUDE_DIRS})
 # target_link_libraries(foo ${ARMADILLO_LIBRARIES})
 # MESSAGE(STATUS "${ARMADILLO_LIBRARIES}")
+
 
 # project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)

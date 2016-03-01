@@ -209,4 +209,7 @@ Makefile*
 #QtCtreator CMake
 CMakeLists.txt.user
 
-
+# user add
+eigen-eigen-07105f7124f9/
+armadillo-6.500.5/
+creater_cpp/

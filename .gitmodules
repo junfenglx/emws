@@ -1,3 +1,6 @@
 [submodule "emws-cpp/third_party/libigl"]
 	path = emws-cpp/third_party/libigl
 	url = git@github.com:libigl/libigl.git
+[submodule "emws-cpp/third_party/easyloggingpp"]
+	path = emws-cpp/third_party/easyloggingpp
+	url = git@github.com:easylogging/easyloggingpp.git

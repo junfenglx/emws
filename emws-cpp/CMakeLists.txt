@@ -44,6 +44,9 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 # target_link_libraries(foo ${ARMADILLO_LIBRARIES})
 # MESSAGE(STATUS "${ARMADILLO_LIBRARIES}")
 
+# Easylogging++
+set(Easyloggingpp_INCLUDE_DIR ./third_party/easyloggingpp/src)
+include_directories(${Easyloggingpp_INCLUDE_DIR})
 
 # project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)

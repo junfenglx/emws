@@ -30,13 +30,10 @@ set(CMAKE_COLOR_MAKEFILE   ON)
 
 # Eigen
 set(Eigen_INCLUDE_DIR /usr/include/eigen3)
-include_directories("${Eigen_INCLUDE_DIR}")
 set(Eigen_Unsupported_INCLUDE_DIR /usr/include/eigen3/unsupported)
-include_directories("${Eigen_Unsupported_INCLUDE_DIR}")
 
 # libigl
-set(Libigl_INCLUDE_DIR ./third_party/libigl/include)
-include_directories("${Libigl_INCLUDE_DIR}")
+set(Libigl_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/libigl/include)
 
 # Armadillo
 find_package(Armadillo)
@@ -45,11 +42,11 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 # MESSAGE(STATUS "${ARMADILLO_LIBRARIES}")
 
 # Easylogging++
-set(Easyloggingpp_INCLUDE_DIR ./third_party/easyloggingpp/src)
+set(Easyloggingpp_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/easyloggingpp/src)
 include_directories(${Easyloggingpp_INCLUDE_DIR})
 
 # RapidJSON
-set(RapidJSON_INCLUDE_DIR ./third_party/rapidjson/include)
+set(RapidJSON_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/rapidjson/include)
 include_directories(${RapidJSON_INCLUDE_DIR})
 
 # project include dir

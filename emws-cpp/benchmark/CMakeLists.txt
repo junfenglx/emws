@@ -1,6 +1,10 @@
 project(matrix_benchmark)
 file(GLOB BENCH_SRCS *.cpp)
 
+include_directories("${Eigen_INCLUDE_DIR}")
+include_directories("${Eigen_Unsupported_INCLUDE_DIR}")
+include_directories("${Libigl_INCLUDE_DIR}")
+
 add_executable(${PROJECT_NAME} ${BENCH_SRCS})
 
 # boost program_options

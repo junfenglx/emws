@@ -1,5 +1,9 @@
 project(some_test)
 
+include_directories("${Eigen_INCLUDE_DIR}")
+include_directories("${Eigen_Unsupported_INCLUDE_DIR}")
+include_directories("${Libigl_INCLUDE_DIR}")
+
 add_executable(test_eigen_dot test_eigen_dot.cc)
 
 add_executable(test_first_eigen test_first_eigen.cc)

@@ -48,6 +48,10 @@ include_directories(${ARMADILLO_INCLUDE_DIRS})
 set(Easyloggingpp_INCLUDE_DIR ./third_party/easyloggingpp/src)
 include_directories(${Easyloggingpp_INCLUDE_DIR})
 
+# RapidJSON
+set(RapidJSON_INCLUDE_DIR ./third_party/rapidjson/include)
+include_directories(${RapidJSON_INCLUDE_DIR})
+
 # project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
 include_directories("${PROJECT_INCLUDE_DIR}")

@@ -4,3 +4,6 @@
 [submodule "emws-cpp/third_party/easyloggingpp"]
 	path = emws-cpp/third_party/easyloggingpp
 	url = git@github.com:easylogging/easyloggingpp.git
+[submodule "emws-cpp/third_party/rapidjson"]
+	path = emws-cpp/third_party/rapidjson
+	url = git@github.com:miloyip/rapidjson.git

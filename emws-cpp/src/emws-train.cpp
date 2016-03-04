@@ -33,8 +33,8 @@ void print_config(rapidjson::Document const &config) {
         cout << '\t' << m->name.GetString() << ": ";
         if (m->value.IsString())
             cout << m->value.GetString();
-        else if (m->value.IsInt())
-            cout << m->value.GetInt();
+        else if (m->value.IsUint())
+            cout << m->value.GetUint();
         else if (m->value.IsDouble())
             cout << m->value.GetDouble();
         else if (m->value.IsBool())

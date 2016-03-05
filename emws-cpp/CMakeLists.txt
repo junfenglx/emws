@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.3)
 project(zh-seger)
 
 # output dir
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_SOURCE_DIR}/build")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${PROJECT_BINARY_DIR}/bin")
 
 # compiler flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
@@ -25,6 +25,9 @@ endif ()
 
 set(CMAKE_VERBOSE_MAKEFILE ON)
 set(CMAKE_COLOR_MAKEFILE   ON)
+
+# test option
+option(ZH_SEGER_BUILD_TESTS "Build zh-seger tests." ON)
 
 # common include
 
@@ -50,7 +53,7 @@ set(RapidJSON_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/rapidjson/include)
 include_directories(${RapidJSON_INCLUDE_DIR})
 
 # project include dir
-set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/include)
+set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories("${PROJECT_INCLUDE_DIR}")
 
 # include_directories("${PROJECT_SOURCE_DIR}/src")
@@ -61,3 +64,10 @@ add_subdirectory(benchmark/)
 add_subdirectory(some_test/)
 
 add_subdirectory(src/)
+
+if(ZH_SEGER_BUILD_TESTS)
+    enable_testing()
+    find_package(GTest REQUIRED)
+    include_directories(${GTEST_INCLUDE_DIRS})
+    add_subdirectory(test/)
+endif()

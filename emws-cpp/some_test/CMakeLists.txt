@@ -20,3 +20,5 @@ target_link_libraries( test_armadillo_solve ${ARMADILLO_LIBRARIES})
 add_executable(test_easylogging ./test_easylogging.cpp)
 
 add_executable(test_rapidjson_pretty ./test_rapidjson_pretty.cpp)
+
+add_executable(test_sigaction ./test_sigaction.c)

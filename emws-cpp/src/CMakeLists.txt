@@ -21,3 +21,11 @@ endif()
 
 target_link_libraries(${TRAIN_EXEC} ${ARMADILLO_LIBRARIES})
 target_link_libraries(${PREDICT_EXEC} ${ARMADILLO_LIBRARIES})
+
+
+set(STR_OP_SRCS str_op.cpp)
+set(UTF8_IO_SRCS utf8_io.cpp)
+
+set(SEGER_UTILS_LIB seger_utils)
+add_library(${SEGER_UTILS_LIB} ${STR_OP_SRCS} ${UTF8_IO_SRCS})
+

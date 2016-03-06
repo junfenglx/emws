@@ -19,5 +19,4 @@ TEST(test_seger_utils, test_readlines) {
     for (auto const &sentence : sentences) {
         cout << conv.to_bytes(sentence) << endl;
     }
-
 }

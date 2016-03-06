@@ -18,6 +18,13 @@ public:
     static std::vector<std::u32string> readlines(std::string const &filename);
 
     static std::vector<std::vector<std::u32string>> readwords(std::string const &filename, char32_t delim);
+
+    static bool writelines(std::string const &filename, std::vector<std::u32string> const &sentences, char32_t delim);
+
+    static bool writewords(std::string const &filename, std::vector<std::vector<std::u32string>> const &vec_words,
+                           char32_t word_delim, char32_t line_delim);
+
+    static bool write(std::string const &filename, std::u32string const &content);
 };
 
 

@@ -11,8 +11,17 @@
 
 class str_op {
 public:
-    static std::vector<std::u32string> split(std::u32string const &line, char32_t delim);
+    static std::vector<std::u32string> split(std::u32string const &sentence, char32_t delim);
+
+    static std::vector<std::vector<std::u32string>> split(std::vector<std::u32string> const &sentences, char32_t delim);
+
     static std::u32string join(std::vector<std::u32string> const &words, char32_t delim);
+
+    static std::vector<std::u32string> join(std::vector<std::vector<std::u32string>> const &vec_words, char32_t delim);
+
+    static std::u32string join(
+            std::vector<std::vector<std::u32string>> const &vec_words,
+            char32_t word_delim, char32_t line_delim);
 };
 
 

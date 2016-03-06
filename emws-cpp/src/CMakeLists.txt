@@ -28,10 +28,3 @@ set(UTF8_IO_SRCS utf8_io.cpp)
 
 set(SEGER_UTILS seger_utils CACHE INTERNAL "seger_utils library name" FORCE)
 add_library(${SEGER_UTILS} SHARED ${STR_OP_SRCS} ${UTF8_IO_SRCS})
-
-
-add_executable(test_utf8_io ./test_utf8_io.cpp)
-target_link_libraries(test_utf8_io ${SEGER_UTILS})
-
-add_executable(test_str_op ./test_str_op.cpp)
-target_link_libraries(test_str_op ${SEGER_UTILS})

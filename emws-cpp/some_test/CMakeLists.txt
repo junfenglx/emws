@@ -22,3 +22,11 @@ add_executable(test_easylogging ./test_easylogging.cpp)
 add_executable(test_rapidjson_pretty ./test_rapidjson_pretty.cpp)
 
 add_executable(test_sigaction ./test_sigaction.c)
+
+add_executable(test_utf8_io ./test_utf8_io.cpp)
+target_link_libraries(test_utf8_io ${SEGER_UTILS})
+
+add_executable(test_str_op ./test_str_op.cpp)
+target_link_libraries(test_str_op ${SEGER_UTILS})
+
+add_executable(test_locale ./test_locale.cpp)

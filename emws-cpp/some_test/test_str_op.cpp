@@ -21,5 +21,4 @@ int main() {
     for (auto const &word : words) {
         cout << conv.to_bytes(word) << endl;
     }
-
 }

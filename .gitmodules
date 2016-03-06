@@ -7,3 +7,6 @@
 [submodule "emws-cpp/third_party/rapidjson"]
 	path = emws-cpp/third_party/rapidjson
 	url = git@github.com:miloyip/rapidjson.git
+[submodule "emws-cpp/third_party/googletest"]
+	path = emws-cpp/third_party/googletest
+	url = git@github.com:google/googletest.git

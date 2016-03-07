@@ -693,7 +693,7 @@ class Seger(Word2Vec):
         :arg sentences list of already segmented sentence
         """
 
-        sentence_no, vocab, vocab_pred = -1, {}, {}
+        sentence_no, vocab = -1, {}
         total_words = 0
 
         # for meta_subgram in [self.START, self.END]:

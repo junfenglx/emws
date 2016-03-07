@@ -7,11 +7,15 @@
 
 #include <tuple>
 #include <vector>
+#include <map>
+
+#include <armadillo>
 
 #include "rapidjson/document.h"
 #include "easylogging++.h"
 
 #include "base_seger.h"
+#include "Vocab.h"
 
 class emws_seger : public base_seger {
 
@@ -27,6 +31,11 @@ public:
     virtual bool save(std::string const &model_path) const override;
 
     virtual ~emws_seger() {}
+
+private:
+    void build_vocab(std::vector<std::vector<std::u32string> > sentences);
+    std::map<std::u32string, Vocab> _vocab_from_new(std::vector<std::vector<std::u32string> > sentences);
+    void reset_weights();
 
 private:
     rapidjson::Document config;
@@ -64,9 +73,9 @@ private:
     bool drop_out;
     bool binary_pred;
 
-    std::vector<std::u32string> train_corpus;
+    std::vector<std::vector<std::u32string> > train_corpus;
     std::vector<std::u32string> test_corpus;
-    std::vector<std::u32string> dev_corpus;
+    std::vector<std::vector<std::u32string> > dev_corpus;
     std::vector<std::u32string> quick_test_corpus;
 
     unsigned mask;
@@ -80,18 +89,26 @@ private:
     std::vector<std::string> dev_test_result;
     unsigned epoch;
 
+    // fields created from normal methods
+    std::map<std::u32string, Vocab> vocab;
+    std::vector<std::u32string> index2word;
+    unsigned hybrid_threshold;
+    unsigned total_words;
+    arma::mat syn0;
+    arma::mat syn1neg;
+
     // static member variables
     static el::Logger *logger;
-    static std::string const START;
-    static std::string const END;
-    static std::string const label0_as_vocab;
-    static std::string const label1_as_vocab;
-    static std::string const unknown_as_vocab;
+    static std::u32string const START;
+    static std::u32string const END;
+    static std::u32string const label0_as_vocab;
+    static std::u32string const label1_as_vocab;
+    static std::u32string const unknown_as_vocab;
 
     //prefix for unigram/bigram state; no prefix for *char* unigram/bigrams
-    static std::string const su_prefix;
-    static std::string const sb_prefix;
-    static std::tuple<char, char> const state_varient;
+    static std::u32string const su_prefix;
+    static std::u32string const sb_prefix;
+    static std::array<char32_t, 2> const state_varient;
 
 };
 

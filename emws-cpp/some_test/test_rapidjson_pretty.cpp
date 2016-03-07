@@ -33,17 +33,17 @@ int main(int argc, char *argv[]) {
     d.AddMember("iter", 10, a);
     d.AddMember("use_gold", false, a);
 
-    d.AddMember("train_path", Value().Move(), a);
-    d.AddMember("test_raw_path", Value().Move(), a);
-    d.AddMember("test_path", Value().Move(), a);
-    d.AddMember("dev_path", Value().Move(), a);
-    d.AddMember("quick_test", Value().Move(), a);
-    d.AddMember("dict_path", Value().Move(), a);
-    d.AddMember("score_script_path", Value().Move(), a);
+    d.AddMember("train_path", "null", a);
+    d.AddMember("test_raw_path", "null", a);
+    d.AddMember("test_path", "null", a);
+    d.AddMember("dev_path", "null", a);
+    d.AddMember("quick_test", "null", a);
+    d.AddMember("dict_path", "null", a);
+    d.AddMember("score_script_path", "null", a);
 
     d.AddMember("pre_train", false, a);
-    d.AddMember("uni_path", Value().Move(), a);
-    d.AddMember("bi_path", Value().Move(), a);
+    d.AddMember("uni_path", "null", a);
+    d.AddMember("bi_path", "null", a);
 
     d.AddMember("hybrid_pred", true, a);
     d.AddMember("no_action_feature", false, a);

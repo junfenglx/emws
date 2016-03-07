@@ -1,0 +1,15 @@
+[submodule "emws-cpp/third_party/libigl"]
+	path = emws-cpp/third_party/libigl
+	url = git@github.com:libigl/libigl.git
+[submodule "emws-cpp/third_party/easyloggingpp"]
+	path = emws-cpp/third_party/easyloggingpp
+	url = git@github.com:easylogging/easyloggingpp.git
+[submodule "emws-cpp/third_party/rapidjson"]
+	path = emws-cpp/third_party/rapidjson
+	url = git@github.com:miloyip/rapidjson.git
+[submodule "emws-cpp/third_party/googletest"]
+	path = emws-cpp/third_party/googletest
+	url = git@github.com:google/googletest.git
+[submodule "emws-cpp/third_party/Catch"]
+	path = emws-cpp/third_party/Catch
+	url = git@github.com:philsquared/Catch.git

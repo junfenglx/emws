@@ -10,3 +10,6 @@
 [submodule "emws-cpp/third_party/googletest"]
 	path = emws-cpp/third_party/googletest
 	url = git@github.com:google/googletest.git
+[submodule "emws-cpp/third_party/Catch"]
+	path = emws-cpp/third_party/Catch
+	url = git@github.com:philsquared/Catch.git

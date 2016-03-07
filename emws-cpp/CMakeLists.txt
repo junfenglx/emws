@@ -53,17 +53,9 @@ include_directories(${Easyloggingpp_INCLUDE_DIR})
 set(RapidJSON_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/rapidjson/include)
 include_directories(${RapidJSON_INCLUDE_DIR})
 
-# Googletest
-set(GTEST_REPO_ROOT ${PROJECT_SOURCE_DIR}/third_party/googletest)
-
-# Cathc
-set(CATCH_EXT_ROOT ${PROJECT_SOURCE_DIR}/third_party/catch)
-
 # project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories("${PROJECT_INCLUDE_DIR}")
-
-# include_directories("${PROJECT_SOURCE_DIR}/src")
 
 # sub project
 add_subdirectory(benchmark/)
@@ -73,8 +65,15 @@ add_subdirectory(src/)
 add_subdirectory(some_test/)
 
 if(ZH_SEGER_BUILD_TESTS)
+    # Googletest
+    set(GTEST_REPO_ROOT ${PROJECT_SOURCE_DIR}/third_party/googletest)
+
+    # Catch
+    set(CATCH_EXT_ROOT ${PROJECT_SOURCE_DIR}/third_party/catch)
+    set(CATCH_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/Catch/include)
+
     enable_testing()
     add_subdirectory(${GTEST_REPO_ROOT})
-    add_subdirectory(${CATCH_EXT_ROOT})
+    # add_subdirectory(${CATCH_EXT_ROOT})
     add_subdirectory(test/)
 endif()

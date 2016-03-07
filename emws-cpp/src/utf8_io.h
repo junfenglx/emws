@@ -19,6 +19,8 @@ public:
 
     static std::vector<std::vector<std::u32string>> readwords(std::string const &filename, char32_t delim);
 
+    static std::vector<std::vector<std::u32string>> readwords(std::string const &filename);
+
     static bool writelines(std::string const &filename, std::vector<std::u32string> const &sentences, char32_t delim);
 
     static bool writewords(std::string const &filename, std::vector<std::vector<std::u32string>> const &vec_words,

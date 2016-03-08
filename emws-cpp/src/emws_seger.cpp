@@ -5,6 +5,7 @@
 #include <iostream>
 #include <algorithm>
 #include <functional>
+#include <random>
 
 #include "emws_seger.h"
 
@@ -130,13 +131,19 @@ emws_seger::emws_seger(std::string const &model_path) {
 }
 
 void emws_seger::train() {
+    using namespace std;
     logger->info("start train ...");
     if (train_corpus.size() > 0) {
         // build vocabulary
         build_vocab(train_corpus);
         unsigned chunksize = 200;
+        std::mt19937 g;
+        g.seed(seed);
         for (epoch = 0; epoch < iter; ++epoch) {
             train_mode = true;
+            // shuffle train corpus
+            std::shuffle(train_corpus.begin(), train_corpus.end(), g);
+
             logger->info("training at epoch %v", epoch+1);
             do_train(train_corpus, chunksize, epoch);
 
@@ -291,6 +298,7 @@ std::map<std::u32string, Vocab> emws_seger::_vocab_from_new(
 
 void emws_seger::reset_weights() {
     logger->info("resetting layer weights");
+    arma::arma_rng::set_seed(seed);
     syn0 = arma::randn(vocab.size(), size);
     if (pre_train) {
         // TODO load vector from pre trained vectors
@@ -321,6 +329,7 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
             // update learning rate
             learning_rate = alpha * (1.0 -  (total_words * current_iter + total_count) / (total_words * iter));
             learning_rate = std::min(learning_rate, min_alpha);
+            logger->info("this batch learning rate is %v", learning_rate);
             // TODO random eval
         }
         unsigned x;
@@ -335,9 +344,124 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
 std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std::u32string> const &sentence,
                                                                  double learning_rate) {
     using namespace std;
+    unsigned count_sum = 0;
+    double error_sum = 0.0;
+    if (!sentence.empty()) {
+        // train using the sentence
+        vector<unsigned> indices;
+        unsigned acc = 0;
+        for (auto const &word : sentence) {
+            indices.push_back(acc);
+            acc += word.size();
+        }
+        auto char32_t_seg = str_op::join(sentence, U"");
+        count_sum = static_cast<unsigned>(char32_t_seg.size());
+        auto seg = str_op::full2halfwidth(char32_t_seg);
+        vector<unsigned> label_list(seg.size() + 2, 1);
+        label_list[label_list.size() - 1] = 0;
+        label_list[label_list.size() - 2] = 0;
+        for (auto i : indices)
+            label_list[i] = 0;
+        unsigned prev2_label = 0;
+        unsigned prev_label = 0;
 
-    return std::tuple<unsigned int, double>();
+        for (unsigned pos = 0; pos < count_sum; ++pos) {
+            // TODO continue after coding predict_single_position
+            predict_single_position(seg, pos, prev2_label, prev_label, label_list);
+        }
+    }
+
+    return std::make_tuple(count_sum, error_sum);
 }
+
+void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned pos, unsigned prev2_label,
+                                         unsigned prev_label, std::vector<unsigned int> states) {
+    using namespace std;
+    auto future_label = states[pos + 1];
+    auto future2_label = states[pos + 2];
+    arma::mat feature_vec;
+    arma::uvec feature_indices;
+    // TODO gen_feature
+
+    arma::uvec block;
+    if (train_mode && drop_out) {
+        // TODO drop out function
+    }
+    else if (drop_out) {
+        feature_vec *= (1 - dropout_rate);
+    }
+
+
+    if (!block.is_empty()) {
+        // logger->info("block = %v", block);
+    }
+
+    auto u = pos < sent.size() ? sent[pos] : END;
+    vector<u32string> pred_words;
+    for (auto const varient : state_varient) {
+        u32string temp = su_prefix;
+        temp += varient;
+        temp += u;
+        pred_words.push_back(temp);
+    }
+
+    if (vocab.count(pred_words[0]) && vocab.count(pred_words[1])) {
+        // nothing to do
+    }
+    else {
+        pred_words.clear();
+        if (train_mode) {
+            wstring_convert<codecvt_utf8<char32_t>, char32_t> conv;
+            logger->error("Unknown candidate for %v! Should NOT happen during training!", conv.to_bytes(u));
+        }
+    }
+    vector<u32string> pred2_words{label0_as_vocab, label1_as_vocab};
+    arma::mat softmax_score;
+    arma::uvec pred_indices;
+    arma::mat pred_matrix;
+    if (!pred_words.empty()) {
+        for (auto const &pred : pred_words) {
+            pred_indices << vocab[pred].index;
+        }
+        pred_matrix = syn1neg.rows(pred_indices);
+        if (!block.is_empty())
+            // TODO
+            pred_matrix = block % pred_matrix;
+        else if (drop_out) {
+            pred_matrix = (1 - dropout_rate) * pred_matrix;
+        }
+        auto raw_score = arma::exp(feature_vec * pred_matrix.t());
+        softmax_score = raw_score / arma::sum(raw_score);
+    }
+    arma::uvec pred2_indices;
+    arma::mat pred2_matrix;
+    arma::mat softmax2_score;
+
+    for (auto const &pred : pred2_words) {
+        pred2_indices << vocab[pred].index;
+    }
+    pred2_matrix = syn1neg.rows(pred2_indices);
+    if (!block.is_empty()) {
+        pred2_matrix = block % pred2_matrix;
+    }
+    else if (drop_out) {
+        pred2_matrix = (1 - dropout_rate) * pred2_matrix;
+    }
+    auto raw2_score = arma::exp(feature_vec * pred2_matrix.t());
+    softmax2_score = raw2_score / arma::sum(raw2_score);
+
+    if (!pred_words.empty()) {
+        // concate
+        softmax2_score = arma::join_rows(softmax2_score, softmax_score);
+        pred2_indices = arma::join_cols(pred2_indices, pred_indices);
+        pred2_matrix = arma::join_cols(pred2_matrix, pred_matrix);
+    }
+
+    // TODO return
+    return;
+}
+
+
 
 
 

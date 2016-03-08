@@ -5,6 +5,13 @@
 #include "utf8_io.h"
 #include "str_op.h"
 
+
+static inline void handle_win_file(std::string &sentence) {
+    if (!sentence.empty() && sentence.back() == '\r') {
+        sentence.pop_back();
+    }
+}
+
 std::vector<std::u32string> utf8_io::readlines(std::string const &filename) {
     using namespace std;
     ifstream in_f = ifstream(filename, std::ios_base::binary);
@@ -12,6 +19,7 @@ std::vector<std::u32string> utf8_io::readlines(std::string const &filename) {
     vector<u32string> sentences;
     string sentence;
     while (getline(in_f, sentence)) {
+        handle_win_file(sentence);
         // cout << sentence << endl;
         sentences.push_back(conv.from_bytes(sentence));
     }
@@ -25,6 +33,7 @@ std::vector<std::vector<std::u32string>> utf8_io::readwords(std::string const &f
     vector<vector<u32string>> vec_words;
     string sentence;
     while (getline(in_f, sentence)) {
+        handle_win_file(sentence);
         // cout << sentence << endl;
         u32string u32sentence = conv.from_bytes(sentence);
         vector<u32string> words = str_op::split(u32sentence, delim);
@@ -41,6 +50,7 @@ std::vector<std::vector<std::u32string>> utf8_io::readwords(std::string const &f
     vector<vector<u32string>> vec_words;
     string sentence;
     while (getline(in_f, sentence)) {
+        handle_win_file(sentence);
         // cout << sentence << endl;
         u32string u32sentence = conv.from_bytes(sentence);
         vector<u32string> words = str_op::split(u32sentence);

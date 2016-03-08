@@ -27,6 +27,7 @@ int main(int argc, char *argv[]) {
     d.SetObject();
     d.AddMember("size", 50, a);
     d.AddMember("alpha", 0.1, a);
+    d.AddMember("min_alpha", 0.0001, a);
     d.AddMember("min_count", 1, a);
     d.AddMember("seed", 1, a);
     d.AddMember("workers", 1, a);

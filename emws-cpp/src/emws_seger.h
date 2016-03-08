@@ -40,6 +40,9 @@ private:
                   unsigned chunksize, unsigned current_iter);
     std::tuple<unsigned, double> train_gold_per_sentence(std::vector<std::u32string> const &sentence,
                                                          double learning_rate);
+    void predict_single_position(std::vector<std::u32string> &sent, unsigned pos,
+                                 unsigned prev2_label, unsigned prev_label,
+                                 std::vector<unsigned> states=std::vector<unsigned >());
 
 private:
     rapidjson::Document config;

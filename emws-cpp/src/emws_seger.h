@@ -33,15 +33,20 @@ public:
     virtual ~emws_seger() {}
 
 private:
-    void build_vocab(std::vector<std::vector<std::u32string> > sentences);
-    std::map<std::u32string, Vocab> _vocab_from_new(std::vector<std::vector<std::u32string> > sentences);
+    void build_vocab(std::vector<std::vector<std::u32string> > const &sentences);
+    std::map<std::u32string, Vocab> _vocab_from_new(std::vector<std::vector<std::u32string> > const &sentences);
     void reset_weights();
+    void do_train(std::vector<std::vector<std::u32string> > const &sentences,
+                  unsigned chunksize, unsigned current_iter);
+    std::tuple<unsigned, double> train_gold_per_sentence(std::vector<std::u32string> const &sentence,
+                                                         double learning_rate);
 
 private:
     rapidjson::Document config;
     // required fields
     unsigned size;
     double alpha;
+    double min_alpha;
     unsigned min_count;
     unsigned seed;
     unsigned workers;
@@ -85,7 +90,7 @@ private:
     unsigned pred_size;
     double dropout_rate;
     unsigned dropout_size;
-    bool train_model;
+    bool train_mode;
     std::vector<std::string> dev_test_result;
     unsigned epoch;
 

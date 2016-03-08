@@ -31,7 +31,6 @@ public:
     static std::u32string strip(std::u32string const &word, char32_t c);
 
     static std::vector<std::u32string> full2halfwidth(std::u32string const &sentence);
-
 };
 
 

@@ -21,6 +21,7 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
     // fetch parameters from config;
     size = config["size"].GetUint();
     alpha = config["alpha"].GetDouble();
+    min_alpha = config["min_alpha"].GetDouble();
     min_count = config["min_count"].GetUint();
     seed = config["seed"].GetUint();
     workers = config["workers"].GetUint();
@@ -133,7 +134,16 @@ void emws_seger::train() {
     if (train_corpus.size() > 0) {
         // build vocabulary
         build_vocab(train_corpus);
+        unsigned chunksize = 200;
+        for (epoch = 0; epoch < iter; ++epoch) {
+            train_mode = true;
+            logger->info("training at epoch %v", epoch+1);
+            do_train(train_corpus, chunksize, epoch);
 
+            train_mode = false;
+
+            // TODO eval on dev and test corpus
+        }
     }
 }
 
@@ -163,7 +173,7 @@ std::u32string const emws_seger::sb_prefix = U"$SB";
 
 std::array<char32_t, 2> const emws_seger::state_varient{U'0', U'1'};
 
-void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > sentences) {
+void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > const &sentences) {
     using namespace std;
     auto new_vocab = _vocab_from_new(sentences);
     array<u32string, 3> meta_words = {label0_as_vocab, label1_as_vocab, unknown_as_vocab};
@@ -206,9 +216,10 @@ void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > sentences
     reset_weights();
 }
 
-std::map<std::u32string, Vocab> emws_seger::_vocab_from_new(std::vector<std::vector<std::u32string> > sentences) {
-    using namespace std;
+std::map<std::u32string, Vocab> emws_seger::_vocab_from_new(
+        std::vector<std::vector<std::u32string> > const &sentences) {
 
+    using namespace std;
     logger->info("collecting all words and their counts");
 
     map<u32string, Vocab> new_vocab;
@@ -223,6 +234,7 @@ std::map<std::u32string, Vocab> emws_seger::_vocab_from_new(std::vector<std::vec
                          sentence_no, total_words, new_vocab.size());
 
         // remove '\r' character
+        // already removed '\r' at get line from file
         auto seq = str_op::full2halfwidth(str_op::join(sentence, U""));
         if (!seq.empty()) {
             vector<u32string> char32_t_seq = {START, START};
@@ -285,3 +297,48 @@ void emws_seger::reset_weights() {
     }
     syn1neg = arma::randn(vocab.size(), pred_size);
 }
+
+void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sentences, unsigned chunksize,
+                          unsigned current_iter) {
+    using namespace std;
+
+    unsigned total_count = 0;
+    double total_error = 0;
+    unsigned current_batch_count = 0;
+    double current_batch_error = 0;
+
+    unsigned sentence_no = 0;
+    double learning_rate = alpha;
+    for (auto const &sentence : sentences) {
+        // sentence is vector<u32string>
+        sentence_no++;
+        if(sentence_no % chunksize == 0) {
+            total_count += current_batch_count;
+            total_error += current_batch_error;
+            logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v",
+                         current_batch_error / current_batch_count, current_batch_error, current_batch_count);
+
+            // update learning rate
+            learning_rate = alpha * (1.0 -  (total_words * current_iter + total_count) / (total_words * iter));
+            learning_rate = std::min(learning_rate, min_alpha);
+            // TODO random eval
+        }
+        unsigned x;
+        double y;
+        std::tie(x, y) = train_gold_per_sentence(sentence, learning_rate);
+        current_batch_count += x;
+        current_batch_error += y;
+    }
+    return;
+}
+
+std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std::u32string> const &sentence,
+                                                                 double learning_rate) {
+    using namespace std;
+
+    return std::tuple<unsigned int, double>();
+}
+
+
+
+

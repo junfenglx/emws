@@ -29,6 +29,11 @@ set(CMAKE_COLOR_MAKEFILE   ON)
 
 # test option
 option(ZH_SEGER_BUILD_TESTS "Build zh-seger tests." ON)
+# matrix benchmark option
+option(ZH_SEGER_BUILD_BENCH "Build matrix benchmark exeutable." OFF)
+# some tests exeutable option
+option(ZH_SEGER_BUILD_SOMETESTS "Build some tests exeutable." ON)
+
 
 # common include
 
@@ -58,11 +63,16 @@ set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories("${PROJECT_INCLUDE_DIR}")
 
 # sub project
-add_subdirectory(benchmark/)
+
+if(ZH_SEGER_BUILD_BENCH)
+    add_subdirectory(benchmark/)
+endif()
 
 add_subdirectory(src/)
 
-add_subdirectory(some_test/)
+if(ZH_SEGER_BUILD_SOMETESTS)
+    add_subdirectory(some_test/)
+endif()
 
 if(ZH_SEGER_BUILD_TESTS)
     # Googletest

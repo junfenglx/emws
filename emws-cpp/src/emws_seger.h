@@ -40,9 +40,21 @@ private:
                   unsigned chunksize, unsigned current_iter);
     std::tuple<unsigned, double> train_gold_per_sentence(std::vector<std::u32string> const &sentence,
                                                          double learning_rate);
-    void predict_single_position(std::vector<std::u32string> &sent, unsigned pos,
-                                 unsigned prev2_label, unsigned prev_label,
-                                 std::vector<unsigned> states=std::vector<unsigned >());
+
+    std::tuple<arma::mat, arma::uvec, arma::uvec, arma::mat, arma::mat>
+    predict_single_position(std::vector<std::u32string> &sent, unsigned pos,
+                            unsigned prev2_label, unsigned prev_label,
+                            std::vector<unsigned> states=std::vector<unsigned >());
+
+    std::tuple<arma::mat, arma::uvec>
+    gen_feature(std::vector<std::u32string> &sent, unsigned pos,
+                unsigned prev2_label, unsigned prev_label,
+                unsigned future_label, unsigned future2_label);
+
+
+    std::array<std::u32string, 9> gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos);
+
+    arma::uvec words2indices(std::vector<std::u32string> const &feat_vec);
 
 private:
     rapidjson::Document config;
@@ -116,7 +128,7 @@ private:
     //prefix for unigram/bigram state; no prefix for *char* unigram/bigrams
     static std::u32string const su_prefix;
     static std::u32string const sb_prefix;
-    static std::array<char32_t, 2> const state_varient;
+    static std::array<std::u32string, 2> const state_varient;
 
 };
 

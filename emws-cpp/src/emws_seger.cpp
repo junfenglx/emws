@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <functional>
 #include <random>
+#include <set>
 
 #include "emws_seger.h"
 
@@ -136,7 +137,8 @@ void emws_seger::train() {
     if (train_corpus.size() > 0) {
         // build vocabulary
         build_vocab(train_corpus);
-        unsigned chunksize = 200;
+        // TODO for debug, set chunksize to 20
+        unsigned chunksize = 20;
         std::mt19937 g;
         g.seed(seed);
         for (epoch = 0; epoch < iter; ++epoch) {
@@ -178,7 +180,7 @@ std::u32string const emws_seger::su_prefix = U"$SU";
 
 std::u32string const emws_seger::sb_prefix = U"$SB";
 
-std::array<char32_t, 2> const emws_seger::state_varient{U'0', U'1'};
+std::array<std::u32string, 2> const emws_seger::state_varient{U"0", U"1"};
 
 void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > const &sentences) {
     using namespace std;
@@ -375,18 +377,32 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
     return std::make_tuple(count_sum, error_sum);
 }
 
-void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned pos, unsigned prev2_label,
-                                         unsigned prev_label, std::vector<unsigned int> states) {
+std::tuple<arma::mat, arma::uvec, arma::uvec, arma::mat, arma::mat>
+emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned pos, unsigned prev2_label,
+                                    unsigned prev_label, std::vector<unsigned int> states) {
     using namespace std;
     auto future_label = states[pos + 1];
     auto future2_label = states[pos + 2];
     arma::mat feature_vec;
     arma::uvec feature_indices;
-    // TODO gen_feature
+    std::tie(feature_vec, feature_indices) =
+            gen_feature(sent, pos, prev2_label, prev_label, future_label, future2_label);
 
     arma::uvec block;
     if (train_mode && drop_out) {
-        // TODO drop out function
+        auto to_block = arma::linspace<arma::uvec>(0, non_fixed_param-1, 1);
+        to_block = arma::shuffle(to_block);
+        to_block = to_block.subvec(0, dropout_size);
+        set<unsigned> block_check;
+        for (unsigned i = 0; i < to_block.n_elem; ++i)
+            block_check.insert(to_block(i));
+        block = arma::uvec(pred_size, arma::fill::ones);
+        for (unsigned i =0; i < pred_size; ++i) {
+            if (block_check.count(i))
+                block(i) = 0;
+        }
+        feature_vec = feature_vec % block;
+        // TODO need debug
     }
     else if (drop_out) {
         feature_vec *= (1 - dropout_rate);
@@ -394,7 +410,7 @@ void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsi
 
 
     if (!block.is_empty()) {
-        // logger->info("block = %v", block);
+        logger->info("block = %v", block);
     }
 
     auto u = pos < sent.size() ? sent[pos] : END;
@@ -418,15 +434,17 @@ void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsi
     }
     vector<u32string> pred2_words{label0_as_vocab, label1_as_vocab};
     arma::mat softmax_score;
-    arma::uvec pred_indices;
+    arma::uvec pred_indices(pred_words.size());
     arma::mat pred_matrix;
     if (!pred_words.empty()) {
+        unsigned i = 0;
         for (auto const &pred : pred_words) {
-            pred_indices << vocab[pred].index;
+            pred_indices(i) = vocab[pred].index;
+            i++;
         }
         pred_matrix = syn1neg.rows(pred_indices);
         if (!block.is_empty())
-            // TODO
+            // TODO need debug
             pred_matrix = block % pred_matrix;
         else if (drop_out) {
             pred_matrix = (1 - dropout_rate) * pred_matrix;
@@ -434,15 +452,18 @@ void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsi
         auto raw_score = arma::exp(feature_vec * pred_matrix.t());
         softmax_score = raw_score / arma::sum(raw_score);
     }
-    arma::uvec pred2_indices;
+    arma::uvec pred2_indices(pred2_words.size());
     arma::mat pred2_matrix;
     arma::mat softmax2_score;
 
+    unsigned i = 0;
     for (auto const &pred : pred2_words) {
-        pred2_indices << vocab[pred].index;
+        pred2_indices(i) = vocab[pred].index;
+        i++;
     }
     pred2_matrix = syn1neg.rows(pred2_indices);
     if (!block.is_empty()) {
+        // TODO need debug
         pred2_matrix = block % pred2_matrix;
     }
     else if (drop_out) {
@@ -458,10 +479,106 @@ void emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsi
         pred2_matrix = arma::join_cols(pred2_matrix, pred_matrix);
     }
 
-    // TODO return
-    return;
+    return std::make_tuple(softmax2_score, feature_indices, pred2_indices, feature_vec, pred2_matrix);
 }
 
+std::tuple<arma::mat, arma::uvec>
+emws_seger::gen_feature(std::vector<std::u32string> &sent, unsigned pos,
+            unsigned prev2_label, unsigned prev_label,
+            unsigned future_label, unsigned future2_label) {
+
+    using namespace std;
+
+    auto uni_bi_grams = gen_unigram_bigram(sent, pos);
+    vector<u32string> ngram_feature_vec(uni_bi_grams.begin(), uni_bi_grams.end());
+    if (no_bigram_feature) {
+        auto last = ngram_feature_vec.end();
+        ngram_feature_vec.erase(last - 4, last);
+    }
+
+    if (no_unigram_feature) {
+        auto first = ngram_feature_vec.begin();
+        ngram_feature_vec.erase(first, first + 5);
+    }
+    auto u_2 = uni_bi_grams[2];
+    auto u_1 = uni_bi_grams[1];
+    vector<u32string> state_feature_vec;
+    state_feature_vec.push_back(
+            su_prefix + state_varient[prev2_label] + u_2
+    );
+    state_feature_vec.push_back(
+            su_prefix + state_varient[prev_label] + u_1
+    );
+
+    auto u1 = uni_bi_grams[3];
+    auto u2 = uni_bi_grams[4];
+    vector<u32string> right_state_feature_vec;
+    right_state_feature_vec.push_back(
+            su_prefix + state_varient[future_label] + u1
+    );
+    right_state_feature_vec.push_back(
+            su_prefix + state_varient[future2_label] + u2
+    );
+    auto b_1 = uni_bi_grams[5];
+    auto b1 = uni_bi_grams[7];
+    if (!no_sb_state_feature) {
+        state_feature_vec.push_back(
+                sb_prefix + state_varient[prev_label] + b_1
+        );
+        right_state_feature_vec.push_back(
+                sb_prefix + state_varient[future_label] + b1
+        );
+    }
+    vector<u32string> feat_vec;
+    if (no_action_feature) {
+        feat_vec = ngram_feature_vec;
+    }
+    else {
+        feat_vec = ngram_feature_vec;
+        feat_vec.insert(feat_vec.end(), state_feature_vec.begin(), state_feature_vec.end());
+    }
+    if (!no_right_action_feature) {
+        feat_vec.insert(feat_vec.end(), right_state_feature_vec.begin(), right_state_feature_vec.end());
+    }
+
+    auto feat_indices = words2indices(feat_vec);
+    auto feature_mat = syn0.rows(feat_indices);
+    auto feature_vec = arma::vectorise(feature_mat, 1);
+    // feat_indices size is 12x1, feature_vec size is 1x600
+    // logger->info("feat_indices size is %v, feature_vec size is %v", arma::size(feat_indices), arma::size(feature_vec));
+    return std::make_tuple(feature_vec, feat_indices);
+}
+
+std::array<std::u32string, 9> emws_seger::gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos) {
+    using namespace std;
+    auto n = sent.size();
+    auto u = pos < n ? sent[pos] : END;
+    auto u_1 = pos > 0 ? sent[pos - 1] : START;
+    auto u_2 = pos > 1 ? sent[pos - 2] : START;
+    auto u1 = pos < n - 1 ? sent[pos + 1] : END;
+    auto u2 = pos < n - 2 ? sent[pos + 2] : END;
+    auto b_1 = u_1 + u;
+    auto b_2 = u_2 + u_1;
+    auto b1 = u + u1;
+    auto b2 = u1 + u2;
+
+    return std::array<std::u32string, 9>{u, u_1, u_2, u1, u2, b_1, b_2, b1, b2};
+}
+
+arma::uvec emws_seger::words2indices(std::vector<std::u32string> const &feat_vec) {
+    using namespace std;
+    arma::uvec feat_indices(feat_vec.size());
+    for (unsigned i = 0; i < feat_vec.size(); ++i) {
+        auto &word = feat_vec[i];
+        unsigned index;
+        if (vocab.count(word))
+            index = vocab[word].index;
+        else
+            index = vocab[unknown_as_vocab].index;
+        feat_indices(i) = index;
+    }
+    return feat_indices;
+}
 
 
 

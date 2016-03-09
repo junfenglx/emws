@@ -55,7 +55,8 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
 
     l2_rate = 0.001;// rate for L2 regularization
 
-    drop_out = true;
+    // test passed even set to true
+    drop_out = false;
 
     binary_pred = false;
 
@@ -360,30 +361,74 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
         auto char32_t_seg = str_op::join(sentence, U"");
         count_sum = static_cast<unsigned>(char32_t_seg.size());
         auto seg = str_op::full2halfwidth(char32_t_seg);
-        vector<unsigned> label_list(seg.size() + 2, 1);
-        label_list[label_list.size() - 1] = 0;
-        label_list[label_list.size() - 2] = 0;
+        vector<unsigned> label_vec(seg.size() + 2, 1);
+        label_vec[label_vec.size() - 1] = 0;
+        label_vec[label_vec.size() - 2] = 0;
         for (auto i : indices)
-            label_list[i] = 0;
+            label_vec[i] = 0;
         unsigned prev2_label = 0;
         unsigned prev_label = 0;
 
         for (unsigned pos = 0; pos < count_sum; ++pos) {
             // TODO continue after coding predict_single_position
-            predict_single_position(seg, pos, prev2_label, prev_label, label_list);
+            arma::vec softmax_score;
+            arma::uvec feature_indices;
+            arma::uvec pred_indices;
+            arma::rowvec feature_vec;
+            arma::mat pred_matrix;
+            std::tie(softmax_score, feature_indices, pred_indices, feature_vec, pred_matrix) =
+                    predict_single_position(seg, pos, prev2_label, prev_label, label_vec);
+            auto true_label = label_vec[pos];
+            arma::vec gold_score;
+            if (softmax_score.n_elem == 4) {
+                assert(train_mode == true);
+                if (true_label == 0)
+                    gold_score = {1.0, 0.0, 1.0, 0.0};
+                else if (true_label == 1)
+                    gold_score = {0.0, 1.0, 0.0, 1.0};
+                else
+                    logger->error("Error! true label should either 1 or 0, but now it is: %v", true_label);
+            }
+            else {
+                logger->error("The output of predict_single_position"
+                                      " should have either 2 or 4 scores, but now it has %v", softmax_score.n_elem);
+                assert(false == true);
+            }
+            arma::vec error_array = gold_score - softmax_score;
+            error_sum += arma::sum(arma::abs(error_array)) / error_array.n_elem;
+            arma::vec gb = error_array * learning_rate;
+            arma::mat neu1e = gb.t() * pred_matrix.cols(0, non_fixed_param - 1);
+            if (l2_rate > 0) {
+                syn1neg.rows(pred_indices) *= (1 - learning_rate * l2_rate);
+                syn0.rows(feature_indices) *= (1 - learning_rate * l2_rate);
+            }
+
+            syn1neg.rows(pred_indices) += (gb * feature_vec);
+            neu1e.resize(feature_indices.n_elem, neu1e.n_elem / feature_indices.n_elem);
+            syn0.rows(feature_indices) += neu1e;
+            softmax_score = softmax_score.subvec(softmax_score.n_elem - 2, softmax_score.n_elem - 1);
+            unsigned label;
+            if (softmax_score(1) > 0.5)
+                label = 1;
+            else
+                label = 0;
+            prev2_label = prev_label;
+            prev_label = label;
+            if (use_gold)
+                prev_label = true_label;
         }
     }
 
     return std::make_tuple(count_sum, error_sum);
 }
 
-std::tuple<arma::mat, arma::uvec, arma::uvec, arma::mat, arma::mat>
+std::tuple<arma::vec, arma::uvec, arma::uvec, arma::rowvec, arma::mat>
 emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned pos, unsigned prev2_label,
                                     unsigned prev_label, std::vector<unsigned int> states) {
     using namespace std;
     auto future_label = states[pos + 1];
     auto future2_label = states[pos + 2];
-    arma::mat feature_vec;
+    arma::rowvec feature_vec;
     arma::uvec feature_indices;
     std::tie(feature_vec, feature_indices) =
             gen_feature(sent, pos, prev2_label, prev_label, future_label, future2_label);
@@ -487,7 +532,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
     return std::make_tuple(softmax2_score, feature_indices, pred2_indices, feature_vec, pred2_matrix);
 }
 
-std::tuple<arma::mat, arma::uvec>
+std::tuple<arma::rowvec, arma::uvec>
 emws_seger::gen_feature(std::vector<std::u32string> &sent, unsigned pos,
             unsigned prev2_label, unsigned prev_label,
             unsigned future_label, unsigned future2_label) {

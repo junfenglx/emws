@@ -41,12 +41,12 @@ private:
     std::tuple<unsigned, double> train_gold_per_sentence(std::vector<std::u32string> const &sentence,
                                                          double learning_rate);
 
-    std::tuple<arma::mat, arma::uvec, arma::uvec, arma::mat, arma::mat>
+    std::tuple<arma::vec, arma::uvec, arma::uvec, arma::rowvec, arma::mat>
     predict_single_position(std::vector<std::u32string> &sent, unsigned pos,
                             unsigned prev2_label, unsigned prev_label,
                             std::vector<unsigned> states=std::vector<unsigned >());
 
-    std::tuple<arma::mat, arma::uvec>
+    std::tuple<arma::rowvec, arma::uvec>
     gen_feature(std::vector<std::u32string> &sent, unsigned pos,
                 unsigned prev2_label, unsigned prev_label,
                 unsigned future_label, unsigned future2_label);

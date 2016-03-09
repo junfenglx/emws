@@ -194,6 +194,7 @@ void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > const &se
     for (auto const &item : new_vocab) {
         auto word = item.first;
         auto v = item.second;
+        v.index = vocab.size();
         if (v.count >= min_count) {
             index2word.push_back(word);
             vocab[word] = v;

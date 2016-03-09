@@ -55,7 +55,7 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
 
     l2_rate = 0.001;// rate for L2 regularization
 
-    drop_out = false;
+    drop_out = true;
 
     binary_pred = false;
 
@@ -388,17 +388,17 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
     std::tie(feature_vec, feature_indices) =
             gen_feature(sent, pos, prev2_label, prev_label, future_label, future2_label);
 
-    arma::uvec block;
+    arma::urowvec block;
     if (train_mode && drop_out) {
-        auto to_block = arma::linspace<arma::uvec>(0, non_fixed_param-1, 1);
+        arma::Col<unsigned> to_block = arma::linspace<arma::Col<unsigned> >(0, non_fixed_param-1, non_fixed_param);
         to_block = arma::shuffle(to_block);
-        to_block = to_block.subvec(0, dropout_size);
-        set<unsigned> block_check;
+        to_block = to_block.subvec(0, dropout_size - 1);
+        set<unsigned> in_block;
         for (unsigned i = 0; i < to_block.n_elem; ++i)
-            block_check.insert(to_block(i));
-        block = arma::uvec(pred_size, arma::fill::ones);
+            in_block.insert(to_block(i));
+        block = arma::urowvec(pred_size, arma::fill::ones);
         for (unsigned i =0; i < pred_size; ++i) {
-            if (block_check.count(i))
+            if (in_block.count(i))
                 block(i) = 0;
         }
         feature_vec = feature_vec % block;
@@ -408,9 +408,11 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
         feature_vec *= (1 - dropout_rate);
     }
 
-
+    arma::umat block_mat;
     if (!block.is_empty()) {
-        logger->info("block = %v", block);
+        // to verbose
+        // logger->info("block = %v", block);
+        block_mat = arma::join_cols(block, block);
     }
 
     auto u = pos < sent.size() ? sent[pos] : END;
@@ -444,8 +446,8 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
         }
         pred_matrix = syn1neg.rows(pred_indices);
         if (!block.is_empty())
-            // TODO need debug
-            pred_matrix = block % pred_matrix;
+            // already debug
+            pred_matrix = block_mat % pred_matrix;
         else if (drop_out) {
             pred_matrix = (1 - dropout_rate) * pred_matrix;
         }
@@ -465,8 +467,9 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
     }
     pred2_matrix = syn1neg.rows(pred2_indices);
     if (!block.is_empty()) {
-        // TODO need debug
-        pred2_matrix = block % pred2_matrix;
+        // shape need same even element wise multiplication
+        // Aramdillo doesn't broadcast elements
+        pred2_matrix = block_mat % pred2_matrix;
     }
     else if (drop_out) {
         pred2_matrix = (1 - dropout_rate) * pred2_matrix;

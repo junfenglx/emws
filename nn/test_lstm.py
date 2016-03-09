@@ -21,6 +21,98 @@ from keras.layers.embeddings import Embedding
 from keras.layers.recurrent import LSTM, SimpleRNN
 from keras.datasets import imdb
 
+TRAIN_FILE = "../working_data/pku_train"
+TEST_FILE = "../working_data/pku_test.raw"
+
+index = 0
+
+def find_max_len():
+
+    def iter_lines(filename, max_len=0):
+        with codecs.open(filename, "rb", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                line = line.replace(' ', '')
+                if max_len < len(line):
+                    print(line)
+                    max_len = len(line)
+                for c in line:
+                    if c not in char2index:
+                        global index
+                        char2index[c] = index
+                        index += 1
+        return max_len
+
+    char2index = {}
+    max_length = iter_lines(TRAIN_FILE)
+    max_length = iter_lines(TEST_FILE, max_len=max_length)
+    return max_length, char2index
+
+
+MAX_LEN = 1019
+
+
+def load_data():
+    def read_lines(filename):
+        lines = []
+        with codecs.open(filename, "rb", encoding="utf-8") as f:
+            for l in f:
+                l = l.strip()
+                if not l:
+                    print(l, filename)
+                    continue
+                l = l.split()
+                lines.append(l)
+        return lines
+
+    # train process
+    print("processing train file ...")
+    train_lines = read_lines(TRAIN_FILE)
+    x_train = []
+    y = []
+    for line in train_lines:
+        old_line = ''.join(line)
+        n = len(old_line)
+        # 1 indicates continue character
+        # 0 indicates start character
+        labels = [1 for _ in range(n)]
+        index = 0
+        for word in line:
+            labels[index] = 0
+            index += len(word)
+        characters = [char2index[c] for c in old_line]
+        x_train.append(characters)
+        y.append(labels)
+    x_train = sequence.pad_sequences(x_train, maxlen=MAX_LEN, padding="post")
+    y = sequence.pad_sequences(y, maxlen=MAX_LEN, padding="post")
+    print("x_train.shape: ", x_train.shape)
+    print("y.shape: ", y.shape)
+
+    # test process
+    print("processing test file ...")
+    test_lines = read_lines(TEST_FILE)
+    x_test = []
+    for line in test_lines:
+        old_line = ''.join(line)
+        characters = [char2index[c] for c in old_line]
+        x_test.append(characters)
+    x_test = sequence.pad_sequences(x_test, maxlen=MAX_LEN, padding="post")
+    print("x_test.shape: ", x_test.shape)
+
+    return x_train, y, x_test
+
+
+"""
+x_train.shape:  (19054, 1019)
+y.shape:  (19054, 1019)
+
+x_test.shape:  (1944, 1019)
+"""
+
+MAX_FEATURES = 4789
+BATCH_SIZE = 32
+
+
 from cws_config import *
 from eval_test import EvalTest
 
@@ -255,6 +347,7 @@ class TestLSTMSequential(TestLSTM):
         y_shape = self.y_train.shape
         self.y_train = np.reshape(self.y_train, (y_shape[0], y_shape[1], 1))
         return model
+>>>>>>> dev
 
 
 if __name__ == "__main__":

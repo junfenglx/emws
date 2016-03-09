@@ -570,7 +570,7 @@ arma::uvec emws_seger::words2indices(std::vector<std::u32string> const &feat_vec
     arma::uvec feat_indices(feat_vec.size());
     for (unsigned i = 0; i < feat_vec.size(); ++i) {
         auto &word = feat_vec[i];
-        unsigned index;
+        unsigned long index;
         if (vocab.count(word))
             index = vocab[word].index;
         else

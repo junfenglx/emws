@@ -433,7 +433,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
         }
     }
     vector<u32string> pred2_words{label0_as_vocab, label1_as_vocab};
-    arma::mat softmax_score;
+    arma::vec softmax_score;
     arma::uvec pred_indices(pred_words.size());
     arma::mat pred_matrix;
     if (!pred_words.empty()) {
@@ -449,12 +449,14 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
         else if (drop_out) {
             pred_matrix = (1 - dropout_rate) * pred_matrix;
         }
-        auto raw_score = arma::exp(feature_vec * pred_matrix.t());
+        // feature_vec is 1*600 matrix, pred_matrix is 2*600 matrix
+        // raw_score is a column vector, size is 2
+        arma::vec raw_score = arma::exp(feature_vec * pred_matrix.t()).t();
         softmax_score = raw_score / arma::sum(raw_score);
     }
     arma::uvec pred2_indices(pred2_words.size());
     arma::mat pred2_matrix;
-    arma::mat softmax2_score;
+    arma::vec softmax2_score;
 
     unsigned i = 0;
     for (auto const &pred : pred2_words) {
@@ -469,16 +471,16 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
     else if (drop_out) {
         pred2_matrix = (1 - dropout_rate) * pred2_matrix;
     }
-    auto raw2_score = arma::exp(feature_vec * pred2_matrix.t());
+    arma::vec raw2_score = arma::exp(feature_vec * pred2_matrix.t()).t();
     softmax2_score = raw2_score / arma::sum(raw2_score);
 
     if (!pred_words.empty()) {
         // concate
-        softmax2_score = arma::join_rows(softmax2_score, softmax_score);
+        softmax2_score = arma::join_cols(softmax2_score, softmax_score);
         pred2_indices = arma::join_cols(pred2_indices, pred_indices);
         pred2_matrix = arma::join_cols(pred2_matrix, pred_matrix);
     }
-
+    // cout << softmax2_score << endl;
     return std::make_tuple(softmax2_score, feature_indices, pred2_indices, feature_vec, pred2_matrix);
 }
 

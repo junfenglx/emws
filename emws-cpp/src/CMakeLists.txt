@@ -2,8 +2,8 @@ project(emws-cpp)
 
 file(GLOB SEGER_SRCS *_seger.cpp)
 
-set(TRAIN_SRCS emws-train.cpp)
-set(PREDICT_SRCS emws-predict.cpp)
+set(TRAIN_SRCS emws-train.cpp score_ret.cpp)
+set(PREDICT_SRCS emws-predict.cpp score_ret.cpp)
 
 set(TRAIN_EXEC emws-train)
 set(PREDICT_EXEC emws-predict)

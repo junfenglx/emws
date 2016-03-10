@@ -7,6 +7,7 @@
 #include <functional>
 #include <random>
 #include <set>
+#include <cstdlib>
 
 #include "emws_seger.h"
 
@@ -63,7 +64,7 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
     logger->info("loading train, test, dev corpus ...");
     train_corpus = utf8_io::readwords(train_path);
     test_corpus = utf8_io::readlines(test_raw_path);
-    dev_corpus = utf8_io::readwords(dev_path);
+    dev_corpus = utf8_io::readlines(dev_path);
     quick_test_corpus = utf8_io::readlines(quick_test);
 
     logger->info("train_corpus num of lines: %v", train_corpus.size());
@@ -158,10 +159,11 @@ void emws_seger::train() {
 }
 
 std::vector<std::u32string> emws_seger::predict(std::u32string const &sentence) const {
-    return std::vector<std::u32string>();
+    return predict_sentence_greedy(sentence);
 }
 
 bool emws_seger::save(std::string const &model_path) const {
+    // TODO serialization
     return false;
 }
 
@@ -193,7 +195,7 @@ void emws_seger::build_vocab(std::vector<std::vector<std::u32string> > const &se
         vocab[meta_word] = v;
         index2word.push_back(meta_word);
     }
-    // TODO iter new_vocab
+    // iter new_vocab
     for (auto const &item : new_vocab) {
         auto word = item.first;
         auto v = item.second;
@@ -335,7 +337,7 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
             // update learning rate
             learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter + total_count) / (total_words * iter));
             learning_rate = std::max(learning_rate, min_alpha);
-            logger->info("current batch learning rate is %v", learning_rate);
+            logger->info("\ncurrent batch learning rate is %v", learning_rate);
             current_batch_count = 0;
             current_batch_error = 0;
             // TODO random eval
@@ -394,7 +396,7 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
             auto true_label = label_vec[pos];
             arma::vec gold_score;
             if (softmax_score.n_elem == 4) {
-                assert(train_mode == true);
+                assert(train_mode);
                 if (true_label == 0)
                     gold_score = {1.0, 0.0, 1.0, 0.0};
                 else if (true_label == 1)
@@ -405,7 +407,7 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
             else {
                 logger->error("The output of predict_single_position"
                                       " should have either 2 or 4 scores, but now it has %v", softmax_score.n_elem);
-                assert(false == true);
+                assert(false);
             }
             arma::vec error_array = gold_score - softmax_score;
             error_sum += arma::sum(arma::abs(error_array)) / error_array.n_elem;
@@ -460,7 +462,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
                 block(i) = 0;
         }
         feature_vec = feature_vec % block;
-        // TODO need debug
+        // no runtime error when dropout set to true
     }
     else if (drop_out) {
         feature_vec *= (1 - dropout_rate);
@@ -642,6 +644,42 @@ arma::uvec emws_seger::words2indices(std::vector<std::u32string> const &feat_vec
     }
     return feat_indices;
 }
+
+score_ret emws_seger::eval(std::vector<std::u32string> const &sentences, std::string const &gold_path) const {
+    using namespace std;
+    auto seged_sentences = base_seger::predict(sentences);
+
+    string temp_dir = "../working_data";
+    auto tmp_path = utf8_io::gen_temp_seged_path("emws", temp_dir);
+    auto tmp_eval_path = tmp_path + ".eval";
+
+    bool flag = utf8_io::writewords(tmp_path, seged_sentences, U' ', U'\n');
+    if (!flag) {
+        logger->error("write words to %v error", tmp_path);
+        return score_ret();
+    }
+
+    logger->info("eval with perl socre");
+
+    ostringstream oss;
+    oss << "perl " << score_script_path << ' ';
+    oss << dict_path << ' ' << gold_path << ' ';
+    oss << tmp_path << " > " << tmp_eval_path;
+    string cmd = oss.str();
+    std::system(cmd.c_str());
+    score_ret sret = score_ret::parse_evaluation_result(tmp_eval_path);
+    return sret;
+}
+
+std::vector<std::u32string> emws_seger::predict_sentence_greedy(std::u32string const &sentence) const {
+    using namespace std;
+    // TODO implements predict_sentence_greedy
+    return std::vector<std::__cxx11::u32string>();
+}
+
+
+
+
 
 
 

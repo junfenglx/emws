@@ -27,6 +27,11 @@ public:
                            char32_t word_delim, char32_t line_delim);
 
     static bool write(std::string const &filename, std::u32string const &content);
+
+    // path
+    static const std::string gen_model_path(std::string const &model_name, std::string const &base_dir=".");
+
+    static const std::string gen_temp_seged_path(std::string const &model_name, std::string const &base_dir = ".");
 };
 
 

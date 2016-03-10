@@ -16,7 +16,7 @@ class base_seger {
 public:
     virtual void train() = 0;
 
-    std::vector<std::vector<std::u32string>> predict(std::vector<std::u32string> const &sentences);
+    std::vector<std::vector<std::u32string>> predict(std::vector<std::u32string> const &sentences) const;
 
     virtual std::vector<std::u32string> predict(std::u32string const &sentence) const = 0;
 

@@ -16,6 +16,7 @@
 
 #include "base_seger.h"
 #include "Vocab.h"
+#include "score_ret.h"
 
 class emws_seger : public base_seger {
 
@@ -56,6 +57,12 @@ private:
 
     arma::uvec words2indices(std::vector<std::u32string> const &feat_vec);
 
+    // eval functions
+    score_ret eval(std::vector<std::u32string> const &sentences, std::string const &gold_path) const;
+
+    std::vector<std::u32string> predict_sentence_greedy(std::u32string const &sentence) const;
+
+
 private:
     rapidjson::Document config;
     // required fields
@@ -95,7 +102,7 @@ private:
 
     std::vector<std::vector<std::u32string> > train_corpus;
     std::vector<std::u32string> test_corpus;
-    std::vector<std::vector<std::u32string> > dev_corpus;
+    std::vector<std::u32string> dev_corpus;
     std::vector<std::u32string> quick_test_corpus;
 
     unsigned mask;

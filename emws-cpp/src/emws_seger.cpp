@@ -320,7 +320,7 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
     double current_batch_error = 0;
 
     unsigned sentence_no = 0;
-    double learning_rate = alpha;
+    double learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter) / (total_words * iter));
     for (auto const &sentence : sentences) {
         // sentence is vector<u32string>
         sentence_no++;
@@ -328,12 +328,16 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
             total_count += current_batch_count;
             total_error += current_batch_error;
             logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v",
-                         current_batch_error / current_batch_count, current_batch_error, current_batch_count);
+                         current_batch_error / current_batch_count,
+                         current_batch_error,
+                         current_batch_count);
 
             // update learning rate
-            learning_rate = alpha * (1.0 -  (total_words * current_iter + total_count) / (total_words * iter));
-            learning_rate = std::min(learning_rate, min_alpha);
-            logger->info("this batch learning rate is %v", learning_rate);
+            learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter + total_count) / (total_words * iter));
+            learning_rate = std::max(learning_rate, min_alpha);
+            logger->info("current batch learning rate is %v", learning_rate);
+            current_batch_count = 0;
+            current_batch_error = 0;
             // TODO random eval
         }
         unsigned x;
@@ -342,6 +346,16 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
         current_batch_count += x;
         current_batch_error += y;
     }
+    // last batch
+    logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v",
+                    current_batch_error / current_batch_count,
+                    current_batch_error,
+                    current_batch_count);
+    total_count += current_batch_count;
+    total_error += current_batch_error;
+
+    logger->info("at epoch %v, processed %v words, total_words %v", current_iter + 1,
+            total_count, total_words);
     return;
 }
 
@@ -370,7 +384,6 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
         unsigned prev_label = 0;
 
         for (unsigned pos = 0; pos < count_sum; ++pos) {
-            // TODO continue after coding predict_single_position
             arma::vec softmax_score;
             arma::uvec feature_indices;
             arma::uvec pred_indices;

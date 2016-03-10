@@ -24,6 +24,7 @@ INITIALIZE_EASYLOGGINGPP
 
 
 #include "base_seger.h"
+#include "utf8_io.h"
 
 void print_config(rapidjson::Document const &config) {
 
@@ -45,16 +46,6 @@ void print_config(rapidjson::Document const &config) {
             cout << "unknown type";
         cout << endl;
     }
-}
-
-const std::string gen_model_path(std::string const &model_name, std::string const &base_dir=".") {
-    using namespace std;
-    time_t t = time(nullptr);
-    tm t_m = *localtime(&t);
-    auto const now_str = put_time(&t_m, "%F_%H-%M");
-    std::ostringstream ate(std::ios_base::ate);
-    ate << base_dir << '/' << model_name << '_' << now_str << ".model";
-    return ate.str();
 }
 
 int main(int argc, const char *argv[]) {
@@ -114,7 +105,7 @@ int main(int argc, const char *argv[]) {
         mainLogger->info("train ...");
         seger->train();
 
-        mainLogger->info("save model to %v", gen_model_path(model_name));
+        mainLogger->info("save model to %v", utf8_io::gen_model_path(model_name));
         // TODO save model
 
         mainLogger->info("train done");

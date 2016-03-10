@@ -33,7 +33,7 @@ base_seger *base_seger::load(std::string const &model_path, std::string const &s
     return seger;
 }
 
-std::vector<std::vector<std::u32string>> base_seger::predict(std::vector<std::u32string> const &sentences) {
+std::vector<std::vector<std::u32string>> base_seger::predict(std::vector<std::u32string> const &sentences) const {
     using namespace std;
 
     auto segmented_sentences = vector<vector<u32string>>();

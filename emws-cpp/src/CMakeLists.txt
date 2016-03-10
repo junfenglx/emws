@@ -2,8 +2,8 @@ project(emws-cpp)
 
 file(GLOB SEGER_SRCS *_seger.cpp)
 
-set(TRAIN_SRCS emws-train.cpp)
-set(PREDICT_SRCS emws-predict.cpp)
+set(TRAIN_SRCS emws-train.cpp score_ret.cpp)
+set(PREDICT_SRCS emws-predict.cpp score_ret.cpp)
 
 set(TRAIN_EXEC emws-train)
 set(PREDICT_EXEC emws-predict)
@@ -29,5 +29,5 @@ set(UTF8_IO_SRCS utf8_io.cpp)
 set(SEGER_UTILS seger_utils CACHE INTERNAL "seger_utils library name" FORCE)
 add_library(${SEGER_UTILS} SHARED ${STR_OP_SRCS} ${UTF8_IO_SRCS})
 
-target_link_libraries(${TRAIN_EXEC} ${SEGER_UTILS} ${ARMADILLO_LIBRARIES})
-target_link_libraries(${PREDICT_EXEC} ${SEGER_UTILS} ${ARMADILLO_LIBRARIES})
+target_link_libraries(${TRAIN_EXEC} ${SEGER_UTILS})
+target_link_libraries(${PREDICT_EXEC} ${SEGER_UTILS})

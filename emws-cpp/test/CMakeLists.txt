@@ -19,6 +19,15 @@ add_test(NAME AllTestsInSegerUtils
         COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/seger_utils_unittest
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/)
 
+# score_ret test
+add_executable( score_ret_unittest test_score_ret.cpp ../src/score_ret.cpp)
+target_link_libraries(score_ret_unittest ${GTEST_BOTH_LIBRARIES})
+target_link_libraries(score_ret_unittest ${SEGER_UTILS})
+
+add_test(NAME AllTestsInScoreRet
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/score_ret_unittest
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/)
+
 # use Catch
 message(STATUS ${CATCH_INCLUDE_DIR})
 include_directories(${CATCH_INCLUDE_DIR})

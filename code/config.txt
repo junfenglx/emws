@@ -9,5 +9,5 @@ quick_test=../working_data/pku.test.10
 dict_path =../working_data/pku.dict
 score_script_path=../working_data/score
 no_binary_action_feature = True
-no_right_action_feature = False
+no_right_action_feature = True
 hybrid_pred = True

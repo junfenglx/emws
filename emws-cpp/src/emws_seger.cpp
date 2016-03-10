@@ -148,12 +148,21 @@ void emws_seger::train() {
             // shuffle train corpus
             std::shuffle(train_corpus.begin(), train_corpus.end(), g);
 
-            logger->info("training at epoch %v", epoch+1);
+            logger->info("training at epoch %v", epoch + 1);
             do_train(train_corpus, chunksize, epoch);
 
             train_mode = false;
-
             // TODO eval on dev and test corpus
+            logger->info("===Eval on dev corpus at epoch %v", epoch + 1);
+            score_ret sret = eval(dev_corpus, dev_path);
+            logger->info("F-score = %v/OOV-Recall = %v/IV-recall = %v",
+                         sret.f_score, sret.oov_recall, sret.iv_recall);
+
+            logger->info("===Eval on test corpus at epoch %v", epoch + 1);
+            score_ret test_sret = eval(test_corpus, test_path);
+            logger->info("F-score = %v/OOV-Recall = %v/IV-recall = %v\n\n",
+                         test_sret.f_score, test_sret.oov_recall, test_sret.iv_recall);
+
         }
     }
 }
@@ -329,7 +338,8 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
         if(sentence_no % chunksize == 0) {
             total_count += current_batch_count;
             total_error += current_batch_error;
-            logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v",
+            logger->info("current batch learning rate is %v", learning_rate);
+            logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v\n",
                          current_batch_error / current_batch_count,
                          current_batch_error,
                          current_batch_count);
@@ -337,7 +347,6 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
             // update learning rate
             learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter + total_count) / (total_words * iter));
             learning_rate = std::max(learning_rate, min_alpha);
-            logger->info("\ncurrent batch learning rate is %v", learning_rate);
             current_batch_count = 0;
             current_batch_error = 0;
             // TODO random eval
@@ -349,14 +358,15 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
         current_batch_error += y;
     }
     // last batch
-    logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v",
+    logger->info("current batch learning rate is %v", learning_rate);
+    logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v\n",
                     current_batch_error / current_batch_count,
                     current_batch_error,
                     current_batch_count);
     total_count += current_batch_count;
     total_error += current_batch_error;
 
-    logger->info("at epoch %v, processed %v words, total_words %v", current_iter + 1,
+    logger->info("at epoch %v, processed %v words, total_words %v\n", current_iter + 1,
             total_count, total_words);
     return;
 }
@@ -439,7 +449,7 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
 
 std::tuple<arma::vec, arma::uvec, arma::uvec, arma::rowvec, arma::mat>
 emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned pos, unsigned prev2_label,
-                                    unsigned prev_label, std::vector<unsigned int> states) {
+                                    unsigned prev_label, std::vector<unsigned int> states) const {
     using namespace std;
     auto future_label = states[pos + 1];
     auto future2_label = states[pos + 2];
@@ -501,7 +511,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
     if (!pred_words.empty()) {
         unsigned i = 0;
         for (auto const &pred : pred_words) {
-            pred_indices(i) = vocab[pred].index;
+            pred_indices(i) = vocab.at(pred).index;
             i++;
         }
         pred_matrix = syn1neg.rows(pred_indices);
@@ -522,7 +532,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
 
     unsigned i = 0;
     for (auto const &pred : pred2_words) {
-        pred2_indices(i) = vocab[pred].index;
+        pred2_indices(i) = vocab.at(pred).index;
         i++;
     }
     pred2_matrix = syn1neg.rows(pred2_indices);
@@ -550,7 +560,7 @@ emws_seger::predict_single_position(std::vector<std::u32string> &sent, unsigned 
 std::tuple<arma::rowvec, arma::uvec>
 emws_seger::gen_feature(std::vector<std::u32string> &sent, unsigned pos,
             unsigned prev2_label, unsigned prev_label,
-            unsigned future_label, unsigned future2_label) {
+            unsigned future_label, unsigned future2_label) const {
 
     using namespace std;
 
@@ -614,7 +624,7 @@ emws_seger::gen_feature(std::vector<std::u32string> &sent, unsigned pos,
     return std::make_tuple(feature_vec, feat_indices);
 }
 
-std::array<std::u32string, 9> emws_seger::gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos) {
+std::array<std::u32string, 9> emws_seger::gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos) const {
     using namespace std;
     auto n = sent.size();
     auto u = pos < n ? sent[pos] : END;
@@ -630,16 +640,16 @@ std::array<std::u32string, 9> emws_seger::gen_unigram_bigram(std::vector<std::u3
     return std::array<std::u32string, 9>{u, u_1, u_2, u1, u2, b_1, b_2, b1, b2};
 }
 
-arma::uvec emws_seger::words2indices(std::vector<std::u32string> const &feat_vec) {
+arma::uvec emws_seger::words2indices(std::vector<std::u32string> const &feat_vec) const {
     using namespace std;
     arma::uvec feat_indices(feat_vec.size());
     for (unsigned i = 0; i < feat_vec.size(); ++i) {
         auto &word = feat_vec[i];
         unsigned long index;
         if (vocab.count(word))
-            index = vocab[word].index;
+            index = vocab.at(word).index;
         else
-            index = vocab[unknown_as_vocab].index;
+            index = vocab.at(unknown_as_vocab).index;
         feat_indices(i) = index;
     }
     return feat_indices;
@@ -673,8 +683,82 @@ score_ret emws_seger::eval(std::vector<std::u32string> const &sentences, std::st
 
 std::vector<std::u32string> emws_seger::predict_sentence_greedy(std::u32string const &sentence) const {
     using namespace std;
-    // TODO implements predict_sentence_greedy
-    return std::vector<std::__cxx11::u32string>();
+    // implements predict_sentence_greedy
+    vector<u32string> tokens;
+
+    if (!sentence.empty()) {
+        vector<u32string> char32_t_seq = str_op::full2halfwidth(sentence);
+        vector<unsigned int> states(char32_t_seq.size() + 2, 1);
+        states.at(states.size() - 1) = 0;
+        states.at(states.size() - 2) = 0;
+
+        auto do_greedy_predict = [this, &states, &char32_t_seq]() {
+            unsigned prev2_label = 0;
+            unsigned prev_label = 0;
+            unsigned p = 0;
+            for (auto const &c : char32_t_seq) {
+                unsigned target;
+                if (p == 0)
+                    target = 0;
+                else {
+                    arma::vec softmax_score;
+                    arma::uvec feature_indices;
+                    arma::uvec pred_indices;
+                    arma::rowvec feature_vec;
+                    arma::mat pred_matrix;
+                    std::tie(softmax_score, feature_indices, pred_indices, feature_vec, pred_matrix) =
+                            predict_single_position(char32_t_seq, p, prev2_label, prev_label, states);
+                    // only use softmax_score
+                    if ( binary_pred)
+                        softmax_score = softmax_score.subvec(0, 1);
+                    else if (hybrid_pred) {
+                        if (vocab.count(c) && vocab.at(c).count > hybrid_threshold)
+                            softmax_score = softmax_score.subvec(softmax_score.n_elem - 2, softmax_score.n_elem - 1);
+                        else {
+                            arma::vec x = softmax_score.head(2);
+                            arma::vec y = softmax_score.tail(2);
+                            softmax_score << (x(0) + y(0)) / 2.0 << (x(1) + y(1)) / 2.0;
+                        }
+                    }
+                    else
+                        softmax_score = softmax_score.subvec(softmax_score.n_elem - 2, softmax_score.n_elem - 1);
+
+                    // transform score to binary target
+                    if (softmax_score(1) > 0.5)
+                        target = 1;
+                    else
+                        target = 0;
+                }
+                // update the label in the current iter
+                states[p] = target;
+                prev2_label = prev_label;
+                prev_label = target;
+                ++p;
+            }
+        };
+        if (no_right_action_feature)
+            do_greedy_predict();
+        else {
+            for (unsigned i = 0; i < iter; ++i)
+                do_greedy_predict();
+        }
+        unsigned pos = 0;
+        for (auto const c : sentence) {
+            unsigned label = states[pos];
+            if (label == 0)
+                tokens.push_back({c});
+            else {
+                if (!tokens.empty())
+                    tokens.back() += c;
+                else {
+                    // never reach here
+                    tokens.push_back({c});
+                    logger->error("should not happen! the action of the first char in the sent is \"APPEND!\"");
+                }
+            }
+        }
+    }
+    return tokens;
 }
 
 

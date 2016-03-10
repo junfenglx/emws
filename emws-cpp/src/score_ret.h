@@ -6,6 +6,7 @@
 #define ZH_SEGER_SCORE_RET_H
 
 #include <string>
+#include <easylogging++.h>
 
 class score_ret {
 public:
@@ -14,10 +15,13 @@ public:
             f_score), oov_recall(oov_recall), iv_recall(iv_recall) { }
 
     static score_ret parse_evaluation_result(std::string const &path_to_evaluation_result);
-private:
+
+public:
     std::string f_score = "--";
     std::string oov_recall = "--";
     std::string iv_recall = "--";
+
+    static el::Logger *logger;
 
 };
 

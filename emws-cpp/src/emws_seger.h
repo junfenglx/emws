@@ -45,17 +45,17 @@ private:
     std::tuple<arma::vec, arma::uvec, arma::uvec, arma::rowvec, arma::mat>
     predict_single_position(std::vector<std::u32string> &sent, unsigned pos,
                             unsigned prev2_label, unsigned prev_label,
-                            std::vector<unsigned> states=std::vector<unsigned >());
+                            std::vector<unsigned> states=std::vector<unsigned >()) const;
 
     std::tuple<arma::rowvec, arma::uvec>
     gen_feature(std::vector<std::u32string> &sent, unsigned pos,
                 unsigned prev2_label, unsigned prev_label,
-                unsigned future_label, unsigned future2_label);
+                unsigned future_label, unsigned future2_label) const;
 
 
-    std::array<std::u32string, 9> gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos);
+    std::array<std::u32string, 9> gen_unigram_bigram(std::vector<std::u32string> &sent, unsigned pos) const;
 
-    arma::uvec words2indices(std::vector<std::u32string> const &feat_vec);
+    arma::uvec words2indices(std::vector<std::u32string> const &feat_vec) const;
 
     // eval functions
     score_ret eval(std::vector<std::u32string> const &sentences, std::string const &gold_path) const;

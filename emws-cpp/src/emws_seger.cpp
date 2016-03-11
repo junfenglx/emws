@@ -8,6 +8,7 @@
 #include <random>
 #include <set>
 #include <cstdlib>
+#include <cmath>
 
 #include "emws_seger.h"
 
@@ -331,8 +332,12 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
     double current_batch_error = 0;
 
     unsigned sentence_no = 0;
-    // double learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter) / (total_words * iter));
-    double learning_rate = alpha;
+    auto update_lr = [this](unsigned ci, unsigned tc) -> double {
+        return alpha * (1.0 -  static_cast<double>(total_words * ci + tc) / (total_words * iter));
+    };
+    // double learning_rate = alpha;
+    double learning_rate = update_lr(current_iter, total_count);
+
     for (auto const &sentence : sentences) {
         // sentence is vector<u32string>
         sentence_no++;
@@ -348,14 +353,14 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
                          current_batch_count);
 
             // update learning rate
-            learning_rate = alpha * (1.0 -  static_cast<double>(total_count) / (total_words));
+            // learning_rate = alpha * (1.0 -  static_cast<double>(total_count) / (total_words));
+            learning_rate = update_lr(current_iter, total_count);
             learning_rate = std::max(learning_rate, min_alpha);
             current_batch_count = 0;
             current_batch_error = 0;
             // TODO random eval
         }
         std::tie(x, y) = train_gold_per_sentence(sentence, learning_rate);
-        logger->warn("subgrams_error: %v", y);
         current_batch_count += x;
         current_batch_error += y;
     }
@@ -423,6 +428,8 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
             }
             arma::vec error_array = gold_score - softmax_score;
             error_sum += arma::sum(arma::abs(error_array)) / error_array.n_elem;
+            if (std::isnan(error_sum))
+                logger->info("error_array is %v", error_array.t());
             arma::vec gb = error_array * learning_rate;
             arma::mat neu1e = gb.t() * pred_matrix.cols(0, non_fixed_param - 1);
             if (l2_rate > 0) {
@@ -688,9 +695,11 @@ std::vector<std::u32string> emws_seger::predict_sentence_greedy(std::u32string c
     using namespace std;
     // implements predict_sentence_greedy
     vector<u32string> tokens;
+    // remove blank space
+    auto sent = str_op::join(str_op::split(sentence), U"");
 
-    if (!sentence.empty()) {
-        vector<u32string> char32_t_seq = str_op::full2halfwidth(sentence);
+    if (!sent.empty()) {
+        vector<u32string> char32_t_seq = str_op::full2halfwidth(sent);
         vector<unsigned int> states(char32_t_seq.size() + 2, 1);
         states.at(states.size() - 1) = 0;
         states.at(states.size() - 2) = 0;
@@ -746,7 +755,7 @@ std::vector<std::u32string> emws_seger::predict_sentence_greedy(std::u32string c
                 do_greedy_predict();
         }
         unsigned pos = 0;
-        for (auto const c : sentence) {
+        for (auto const c : sent) {
             unsigned label = states[pos];
             if (label == 0)
                 tokens.push_back({c});
@@ -759,6 +768,10 @@ std::vector<std::u32string> emws_seger::predict_sentence_greedy(std::u32string c
                     logger->error("should not happen! the action of the first char in the sent is \"APPEND!\"");
                 }
             }
+            // fuck
+            // I need enumerate function in C++
+            // really I feel like fuck a dog
+            ++pos;
         }
     }
     return tokens;

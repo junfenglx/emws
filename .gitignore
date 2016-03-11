@@ -213,3 +213,5 @@ CMakeLists.txt.user
 eigen-eigen-07105f7124f9/
 armadillo-6.500.5/
 creater_cpp/
+*.tmp
+*.tmp.eval

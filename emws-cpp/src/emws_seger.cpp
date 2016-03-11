@@ -140,7 +140,7 @@ void emws_seger::train() {
         // build vocabulary
         build_vocab(train_corpus);
         // TODO for debug, set chunksize to 20
-        unsigned chunksize = 20;
+        unsigned chunksize = 200;
         std::mt19937 g;
         g.seed(seed);
         for (epoch = 0; epoch < iter; ++epoch) {
@@ -314,11 +314,11 @@ std::map<std::u32string, Vocab> emws_seger::_vocab_from_new(
 void emws_seger::reset_weights() {
     logger->info("resetting layer weights");
     arma::arma_rng::set_seed(seed);
-    syn0 = arma::randn(vocab.size(), size);
+    syn0 = (arma::randu(vocab.size(), size) - 0.5) / size;
     if (pre_train) {
         // TODO load vector from pre trained vectors
     }
-    syn1neg = arma::randn(vocab.size(), pred_size);
+    syn1neg = arma::mat(vocab.size(), pred_size, arma::fill::zeros);
 }
 
 void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sentences, unsigned chunksize,
@@ -331,10 +331,13 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
     double current_batch_error = 0;
 
     unsigned sentence_no = 0;
-    double learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter) / (total_words * iter));
+    // double learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter) / (total_words * iter));
+    double learning_rate = alpha;
     for (auto const &sentence : sentences) {
         // sentence is vector<u32string>
         sentence_no++;
+        unsigned x;
+        double y;
         if(sentence_no % chunksize == 0) {
             total_count += current_batch_count;
             total_error += current_batch_error;
@@ -345,15 +348,14 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
                          current_batch_count);
 
             // update learning rate
-            learning_rate = alpha * (1.0 -  static_cast<double>(total_words * current_iter + total_count) / (total_words * iter));
+            learning_rate = alpha * (1.0 -  static_cast<double>(total_count) / (total_words));
             learning_rate = std::max(learning_rate, min_alpha);
             current_batch_count = 0;
             current_batch_error = 0;
             // TODO random eval
         }
-        unsigned x;
-        double y;
         std::tie(x, y) = train_gold_per_sentence(sentence, learning_rate);
+        logger->warn("subgrams_error: %v", y);
         current_batch_count += x;
         current_batch_error += y;
     }
@@ -630,8 +632,9 @@ std::array<std::u32string, 9> emws_seger::gen_unigram_bigram(std::vector<std::u3
     auto u = pos < n ? sent[pos] : END;
     auto u_1 = pos > 0 ? sent[pos - 1] : START;
     auto u_2 = pos > 1 ? sent[pos - 2] : START;
-    auto u1 = pos < n - 1 ? sent[pos + 1] : END;
-    auto u2 = pos < n - 2 ? sent[pos + 2] : END;
+    auto u1 = pos + 1 < n ? sent[pos + 1] : END;
+    // C++ unsigned < signed
+    auto u2 = pos + 2 < n ? sent[pos + 2] : END;
     auto b_1 = u_1 + u;
     auto b_2 = u_2 + u_1;
     auto b1 = u + u1;

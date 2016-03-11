@@ -26,5 +26,19 @@ int main()
     // re initialize
     v2 << 3;
     cout << v2 << endl;
+
+    cout << "test resize" << endl;
+    // according to doc, resize may has bug
+    mat C{1, 2, 3, 4};
+    cout << C << endl;
+    C.resize(2, 2);
+    cout << C << endl;
+
+    cout << "test reshape" << endl;
+    mat D{1, 2, 3, 4};
+    cout << D << endl;
+    D.reshape(2, 2);
+    cout << D.t() << endl;
+
     return 0;
 }

@@ -370,7 +370,7 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
         current_batch_error += y;
     }
     // last batch
-    logger->info("current batch learning rate is %v", learning_rate);
+    logger->info("Epoch: %v, last batch learning rate is %v", current_iter + 1, learning_rate);
     logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v\n",
                     current_batch_error / current_batch_count,
                     current_batch_error,
@@ -442,9 +442,15 @@ std::tuple<unsigned, double> emws_seger::train_gold_per_sentence(std::vector<std
                 syn0.rows(feature_indices) *= (1 - learning_rate * l2_rate);
             }
 
+            // importance code
+            // update weights
+            // gb is 4X1 mat, feature_vec is 1X600 mat, outer product
             syn1neg.rows(pred_indices) += (gb * feature_vec);
-            neu1e.resize(feature_indices.n_elem, neu1e.n_elem / feature_indices.n_elem);
-            syn0.rows(feature_indices) += neu1e;
+            // cout << "Hello" << endl << neu1e.tail_cols(50) << endl;
+            // column-wise manner reshape
+            neu1e.reshape(neu1e.n_elem / feature_indices.n_elem, feature_indices.n_elem);
+            // cout << neu1e.tail_cols(1).t() << endl;
+            syn0.rows(feature_indices) += neu1e.t();
             softmax_score = softmax_score.subvec(softmax_score.n_elem - 2, softmax_score.n_elem - 1);
             unsigned label;
             if (softmax_score(1) > 0.5)

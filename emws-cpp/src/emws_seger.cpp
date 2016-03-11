@@ -123,7 +123,7 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
     logger->info("f_factor2: %v", f_factor2);
 
     if (pre_train) {
-        // TODO implements pre train
+        // TODO implements pre train(most low priority)
     }
 
     epoch = 0;
@@ -140,7 +140,7 @@ void emws_seger::train() {
     if (train_corpus.size() > 0) {
         // build vocabulary
         build_vocab(train_corpus);
-        // TODO for debug, set chunksize to 20
+        // when debug, decrease chunksize
         unsigned chunksize = 200;
         std::mt19937 g;
         g.seed(seed);
@@ -153,7 +153,7 @@ void emws_seger::train() {
             do_train(train_corpus, chunksize, epoch);
 
             train_mode = false;
-            // TODO eval on dev and test corpus
+            // eval on dev and test corpus
             logger->info("===Eval on dev corpus at epoch %v", epoch + 1);
             score_ret sret = eval(dev_corpus, dev_path);
             logger->info("F-score = %v/OOV-Recall = %v/IV-recall = %v",
@@ -173,7 +173,7 @@ std::vector<std::u32string> emws_seger::predict(std::u32string const &sentence) 
 }
 
 bool emws_seger::save(std::string const &model_path) const {
-    // TODO serialization
+    // TODO serialization(high priority)
     return false;
 }
 
@@ -317,7 +317,7 @@ void emws_seger::reset_weights() {
     arma::arma_rng::set_seed(seed);
     syn0 = (arma::randu(vocab.size(), size) - 0.5) / size;
     if (pre_train) {
-        // TODO load vector from pre trained vectors
+        // TODO load vector from pre trained vectors(most low priority)
     }
     syn1neg = arma::mat(vocab.size(), pred_size, arma::fill::zeros);
 }
@@ -338,14 +338,17 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
     // double learning_rate = alpha;
     double learning_rate = update_lr(current_iter, total_count);
 
+    // batch_num
+    unsigned batch_no = 0;
+    unsigned total_batch = static_cast<unsigned>(sentences.size()) / chunksize;
     for (auto const &sentence : sentences) {
         // sentence is vector<u32string>
         sentence_no++;
-        unsigned x;
-        double y;
         if(sentence_no % chunksize == 0) {
+            batch_no = sentence_no / chunksize;
             total_count += current_batch_count;
             total_error += current_batch_error;
+            logger->info("Epoch: %v, at batch_no %v / total_batch %v", current_iter + 1, batch_no, total_batch);
             logger->info("current batch learning rate is %v", learning_rate);
             logger->info("===> batch subgram error rate = %v, subgram_error/subgram count= %v/%v\n",
                          current_batch_error / current_batch_count,
@@ -358,8 +361,10 @@ void emws_seger::do_train(std::vector<std::vector<std::u32string> > const &sente
             learning_rate = std::max(learning_rate, min_alpha);
             current_batch_count = 0;
             current_batch_error = 0;
-            // TODO random eval
+            // TODO random eval(low priority)
         }
+        unsigned x;
+        double y;
         std::tie(x, y) = train_gold_per_sentence(sentence, learning_rate);
         current_batch_count += x;
         current_batch_error += y;

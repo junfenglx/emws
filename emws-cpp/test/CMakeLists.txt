@@ -1,5 +1,5 @@
 # file(GLOB SEGER_UTILS_UNITTEST_SOURCES *.cpp)
-set(SEGER_UTILS_UNITTEST_SOURCES test_utf8_io.cpp test_str_op.cpp test_emws_seger.cpp)
+set(SEGER_UTILS_UNITTEST_SOURCES test_utf8_io.cpp test_str_op.cpp)
 
 # find_package(GTest REQUIRED)
 set(GTEST_INCLUDE_DIRS ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})

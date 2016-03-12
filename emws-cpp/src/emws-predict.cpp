@@ -53,7 +53,7 @@ int main(int argc, const char *argv[]) {
             cout << desc << endl;
             exit(0);
         }
-        if (!vm.count("model") || vm.count("file")) {
+        if (!vm.count("model") || !vm.count("file")) {
             cerr << "Must specify model file path and file path to be segmented ." << endl;
             cout << desc << endl;
             exit(1);

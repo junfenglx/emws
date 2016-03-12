@@ -1,5 +1,5 @@
 # file(GLOB SEGER_UTILS_UNITTEST_SOURCES *.cpp)
-set(SEGER_UTILS_UNITTEST_SOURCES test_utf8_io.cpp test_str_op.cpp)
+set(SEGER_UTILS_UNITTEST_SOURCES test_utf8_io.cpp test_str_op.cpp test_emws_seger.cpp)
 
 # find_package(GTest REQUIRED)
 set(GTEST_INCLUDE_DIRS ${gtest_SOURCE_DIR}/include ${gtest_SOURCE_DIR})
@@ -26,6 +26,16 @@ target_link_libraries(score_ret_unittest ${SEGER_UTILS})
 
 add_test(NAME AllTestsInScoreRet
         COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/score_ret_unittest
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/)
+
+# emws_seger test
+include_directories(${Cereal_INCLUDE_DIR})
+add_executable( emws_seger_unittest test_emws_seger.cpp ../src/emws_seger.cpp  ../src/base_seger.cpp ../src/score_ret.cpp)
+target_link_libraries(emws_seger_unittest ${GTEST_BOTH_LIBRARIES})
+target_link_libraries(emws_seger_unittest ${SEGER_UTILS} ${ARMADILLO_LIBRARIES})
+
+add_test(NAME AllTestsInEmwsSeger
+        COMMAND ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/emws_seger_unittest
         WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/)
 
 # use Catch

@@ -30,3 +30,7 @@ add_executable(test_str_op ./test_str_op.cpp)
 target_link_libraries(test_str_op ${SEGER_UTILS})
 
 add_executable(test_locale ./test_locale.cpp)
+
+include_directories(${Cereal_INCLUDE_DIR})
+
+add_executable(test_cereal_u32 ./test_cereal_u32.cpp)

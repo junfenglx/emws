@@ -8,6 +8,9 @@ set(PREDICT_SRCS emws-predict.cpp score_ret.cpp)
 set(TRAIN_EXEC emws-train)
 set(PREDICT_EXEC emws-predict)
 
+# serialization
+include_directories(${Cereal_INCLUDE_DIR})
+
 add_executable(${TRAIN_EXEC} ${TRAIN_SRCS} ${SEGER_SRCS})
 add_executable(${PREDICT_EXEC} ${PREDICT_SRCS} ${SEGER_SRCS})
 

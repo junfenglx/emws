@@ -10,6 +10,12 @@
 #include <cstdlib>
 #include <cmath>
 
+#include "rapidjson/filewritestream.h"
+
+#include <cereal/archives/binary.hpp>
+#include <rapidjson/prettywriter.h>
+#include <rapidjson/filereadstream.h>
+
 #include "emws_seger.h"
 
 #include "utf8_io.h"
@@ -131,7 +137,24 @@ emws_seger::emws_seger(rapidjson::Document const &config) {
 }
 
 emws_seger::emws_seger(std::string const &model_path) {
+    // serialization
+    using namespace std;
+    ifstream ifs(model_path, ios::binary);
+    cereal::BinaryInputArchive iarchive(ifs);
+    iarchive(*this );
 
+    string const config_path = model_path + ".config.json";
+    FILE* fp = fopen(config_path.c_str(), "rb");
+
+    char readBuffer[65536];
+    rapidjson::FileReadStream is(fp, readBuffer, sizeof(readBuffer));
+    config.ParseStream(is);
+    fclose(fp);
+
+    string const syn0_path = model_path + ".syn0.mat";
+    syn0.load(syn0_path);
+    string const syn1neg_path = model_path + ".syn1neg.mat";
+    syn1neg.load(syn1neg_path);
 }
 
 void emws_seger::train() {
@@ -173,8 +196,29 @@ std::vector<std::u32string> emws_seger::predict(std::u32string const &sentence) 
 }
 
 bool emws_seger::save(std::string const &model_path) const {
-    // TODO serialization(high priority)
-    return false;
+    // serialization
+    using namespace std;
+    ofstream ofs(model_path, ios::binary);
+    if (!ofs || ofs.bad())
+        return false;
+    cereal::BinaryOutputArchive archive( ofs );
+    archive( *this );
+
+    string const config_path = model_path + ".config.json";
+    FILE* fp = fopen(config_path.c_str(), "wb");
+    if (!fp)
+        return false;
+    char writeBuffer[65536];
+    rapidjson::FileWriteStream fos(fp, writeBuffer, sizeof(writeBuffer));
+    rapidjson::PrettyWriter<rapidjson::FileWriteStream> fwriter(fos);
+    config.Accept(fwriter);
+    fclose(fp);
+
+    string const syn0_path = model_path + ".syn0.mat";
+    syn0.save(syn0_path);
+    string const syn1neg_path = model_path + ".syn1neg.mat";
+    syn1neg.save(syn1neg_path);
+    return true;
 }
 
 el::Logger *emws_seger::logger = el::Loggers::getLogger("emws_seger");

@@ -105,8 +105,10 @@ int main(int argc, const char *argv[]) {
         mainLogger->info("train ...");
         seger->train();
 
-        mainLogger->info("save model to %v", utf8_io::gen_model_path(model_name));
-        // TODO save model
+        string const model_path = utf8_io::gen_model_path(model_name);
+        mainLogger->info("save model to %v", model_path);
+        // save model
+        seger->save(model_path);
 
         mainLogger->info("train done");
 

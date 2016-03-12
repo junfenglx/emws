@@ -215,3 +215,6 @@ armadillo-6.500.5/
 creater_cpp/
 *.tmp
 *.tmp.eval
+*.model
+*.model.*
+model/

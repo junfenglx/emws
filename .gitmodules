@@ -13,3 +13,6 @@
 [submodule "emws-cpp/third_party/Catch"]
 	path = emws-cpp/third_party/Catch
 	url = git@github.com:philsquared/Catch.git
+[submodule "emws-cpp/third_party/cereal"]
+	path = emws-cpp/third_party/cereal
+	url = git@github.com:USCiLab/cereal.git

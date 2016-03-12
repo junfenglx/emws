@@ -58,6 +58,9 @@ include_directories(${Easyloggingpp_INCLUDE_DIR})
 set(RapidJSON_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/rapidjson/include)
 include_directories(${RapidJSON_INCLUDE_DIR})
 
+# cereal
+set(Cereal_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/third_party/cereal/include)
+
 # project include dir
 set(PROJECT_INCLUDE_DIR ${PROJECT_SOURCE_DIR}/src)
 include_directories("${PROJECT_INCLUDE_DIR}")

@@ -11,7 +11,13 @@
 
 #include <armadillo>
 
+#include <cereal/access.hpp>
+#include <cereal/types/vector.hpp>
+#include <cereal/types/map.hpp>
+#include <cereal/types/string.hpp>
+
 #include "rapidjson/document.h"
+
 #include "easylogging++.h"
 
 #include "base_seger.h"
@@ -61,6 +67,24 @@ private:
     score_ret eval(std::vector<std::u32string> const &sentences, std::string const &gold_path) const;
 
     std::vector<std::u32string> predict_sentence_greedy(std::u32string const &sentence) const;
+
+    // serialization
+    friend cereal::access;
+    template <class Archive> void serialize(Archive & ar) {
+        ar(
+                size, alpha, min_alpha, min_count, seed, workers, iter, use_gold, train_path,
+                test_raw_path, test_path, dev_path, quick_test, dict_path,
+                score_script_path, pre_train, uni_path, bi_path, hybrid_pred,
+                no_action_feature, no_bigram_feature, no_unigram_feature,
+                no_binary_action_feature, no_sb_state_feature, no_right_action_feature,
+                l2_rate, drop_out, binary_pred,
+                train_corpus, test_corpus, dev_corpus, quick_test_corpus,
+                mask, f_factor, f_factor2, non_fixed_param, pred_size, dropout_rate,
+                dropout_size, train_mode, dev_test_result, epoch,
+                vocab, index2word, hybrid_threshold, total_words
+        );
+        // syn0, syn1neg need handle separately
+    }
 
 
 private:

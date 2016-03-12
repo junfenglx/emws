@@ -12,6 +12,10 @@ struct Vocab {
     unsigned long index;
     double sample_probability = 1.0;
 
+    template <class Archive>
+    void serialize( Archive & ar ) {
+        ar( count, index, sample_probability );
+    }
 };
 
 #endif //ZH_SEGER_VOCAB_H
